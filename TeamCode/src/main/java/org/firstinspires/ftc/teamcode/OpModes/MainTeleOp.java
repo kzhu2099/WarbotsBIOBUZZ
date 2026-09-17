@@ -1,10 +1,13 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.OpModes;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name = "TeleOp")
-public class TeleOpTemplate extends OpMode {
+import org.firstinspires.ftc.teamcode.Robot;
+
+@Disabled
+@com.qualcomm.robotcore.eventloop.opmode.TeleOp(name = "TeleOp")
+public class MainTeleOp extends OpMode {
 
     private Robot robot;
 
