@@ -15,6 +15,13 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
+/**
+ * Everything shared between TeleOp and Autonomous lives here: hardware init,
+ * the Follower, driving, and telemetry. Add this season's subsystems
+ * (intake, outtake, whatever the game needs) as more methods here once the
+ * robot is built, the way the old Robot class held everything in one place.
+ * testing: @10415warbotscoding is present; branch merge successful.
+ */
 public class Robot {
 
     public final Follower follower;
