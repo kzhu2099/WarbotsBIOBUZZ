@@ -1,54 +1,52 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
-import com.pedropathing.paths.Path;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
-import static com.pedropathing.api.Paths.line;
-
-@Autonomous(name = "Autonomous")
+@Autonomous(name = "Auto")
 public class AutoTemplate extends OpMode {
 
     private Robot robot;
-
-    private Path driveForward;
+    private Sequence sequence;
 
     @Override
     public void init() {
+        Points.set("start", Pose.zero());
+
         robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2, false);
-
-        Pose startPose = Pose.zero(); // TODO: set to this auto's real starting pose
-        robot.follower.setPose(startPose);
-
-        driveForward = line(startPose, new Pose(startPose.x() + 24, startPose.y()))
-                .constant(startPose.heading());
+        robot.setStartPoseOptions("start");
     }
 
     @Override
     public void init_loop() {
-        if (gamepad1.xWasPressed()) {
-            robot.redAlliance = !robot.redAlliance;
-        }
-
-        telemetry.addData("alliance (x to toggle)", robot.redAlliance ? "RED" : "BLUE");
-        telemetry.update();
+        robot.toggleAlliance();
+        robot.cycleStartPose();
+        robot.updateTelemetry();
     }
 
     @Override
     public void start() {
+        robot.setStartPose(robot.selectedStartPose());
         robot.start();
-        robot.follower.follow(driveForward);
+
+        Pose startPose = Points.get("start");
+        Points.set("score", new Pose(startPose.x() + 24, startPose.y(), startPose.heading()));
+        Points.set("pickup", new Pose(startPose.x(), startPose.y() + 24, startPose.heading()));
+
+        sequence = new Sequence(
+                robot.stepTo("score"),
+                robot.stepLaunchFor(true, 1.5),
+                Step.branch(() -> false, robot.stepTo("pickup"), robot.stepTo("start")),
+                robot.stepIntakeFor(true, 1)
+        );
     }
 
     @Override
     public void loop() {
-        robot.follower.update();
+        robot.updateFollower();
+        sequence.update();
         robot.updateTelemetry();
-
-        // If TeleOp needs to pick up from here, stash the pose somewhere
-        // shared once the follower reaches the end, e.g.:
-        // if (robot.follower.atParametricEnd()) AutoToTeleOpStorage.endPose = robot.follower.pose();
     }
 
     @Override

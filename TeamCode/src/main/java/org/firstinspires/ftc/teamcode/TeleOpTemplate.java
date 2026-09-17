@@ -15,12 +15,8 @@ public class TeleOpTemplate extends OpMode {
 
     @Override
     public void init_loop() {
-        if (gamepad1.xWasPressed()) {
-            robot.redAlliance = !robot.redAlliance;
-        }
-
-        telemetry.addData("alliance (x to toggle)", robot.redAlliance ? "RED" : "BLUE");
-        telemetry.update();
+        robot.toggleAlliance();
+        robot.updateTelemetry();
     }
 
     @Override
@@ -31,6 +27,8 @@ public class TeleOpTemplate extends OpMode {
     @Override
     public void loop() {
         robot.teleOpDrive();
+        robot.intake(gamepad2.left_trigger > 0.1);
+        robot.launch(gamepad2.right_trigger > 0.1);
         robot.updateTelemetry();
     }
 
