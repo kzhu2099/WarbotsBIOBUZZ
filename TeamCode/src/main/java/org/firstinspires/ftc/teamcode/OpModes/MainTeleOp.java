@@ -1,10 +1,13 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.OpModes;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name = "TeleOp")
-public class TeleOpTemplate extends OpMode {
+import org.firstinspires.ftc.teamcode.Robot;
+
+@Disabled
+@com.qualcomm.robotcore.eventloop.opmode.TeleOp(name = "TeleOp")
+public class MainTeleOp extends OpMode {
 
     private Robot robot;
 
@@ -15,12 +18,8 @@ public class TeleOpTemplate extends OpMode {
 
     @Override
     public void init_loop() {
-        if (gamepad1.xWasPressed()) {
-            robot.redAlliance = !robot.redAlliance;
-        }
-
-        telemetry.addData("alliance (x to toggle)", robot.redAlliance ? "RED" : "BLUE");
-        telemetry.update();
+        robot.toggleAlliance();
+        robot.updateTelemetry();
     }
 
     @Override
@@ -31,6 +30,8 @@ public class TeleOpTemplate extends OpMode {
     @Override
     public void loop() {
         robot.teleOpDrive();
+        robot.intake(gamepad2.left_trigger > 0.1);
+        robot.launch(gamepad2.right_trigger > 0.1);
         robot.updateTelemetry();
     }
 
