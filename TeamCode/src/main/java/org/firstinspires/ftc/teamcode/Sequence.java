@@ -27,11 +27,22 @@ public class Sequence {
         }
     }
 
+    public void skip() {
+        if (isDone()) return;
+        steps[index].stop();
+        index++;
+        started = false;
+    }
+
     public boolean isDone() {
         return index >= steps.length;
     }
 
     public int index() {
         return index;
+    }
+
+    public String currentStepName() {
+        return isDone() ? "done" : steps[index].name();
     }
 }

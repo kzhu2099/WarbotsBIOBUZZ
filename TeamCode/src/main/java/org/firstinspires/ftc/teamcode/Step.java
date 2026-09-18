@@ -10,6 +10,30 @@ public interface Step {
 
     default void stop() {}
 
+    default String name() {
+        return "step";
+    }
+
+    static Step named(String label, Step step) {
+        return new Step() {
+            public void start() {
+                step.start();
+            }
+
+            public boolean isDone() {
+                return step.isDone();
+            }
+
+            public void stop() {
+                step.stop();
+            }
+
+            public String name() {
+                return label;
+            }
+        };
+    }
+
     static Step run(Runnable action) {
         return new Step() {
             public void start() {
@@ -22,7 +46,7 @@ public interface Step {
         };
     }
 
-    static Step wait(double seconds) {
+    static Step pause(double seconds) {
         return timed(seconds, () -> {});
     }
 
@@ -64,6 +88,52 @@ public interface Step {
         return new Step() {
             public boolean isDone() {
                 return condition.get();
+            }
+        };
+    }
+
+    static Step parallel(Step... steps) {
+        return new Step() {
+            public void start() {
+                for (Step s : steps) {
+                    s.start();
+                }
+            }
+
+            public boolean isDone() {
+                for (Step s : steps) {
+                    if (!s.isDone()) return false;
+                }
+                return true;
+            }
+
+            public void stop() {
+                for (Step s : steps) {
+                    s.stop();
+                }
+            }
+        };
+    }
+
+    static Step race(Step... steps) {
+        return new Step() {
+            public void start() {
+                for (Step s : steps) {
+                    s.start();
+                }
+            }
+
+            public boolean isDone() {
+                for (Step s : steps) {
+                    if (s.isDone()) return true;
+                }
+                return false;
+            }
+
+            public void stop() {
+                for (Step s : steps) {
+                    s.stop();
+                }
             }
         };
     }

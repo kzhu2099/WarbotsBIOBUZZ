@@ -15,16 +15,10 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
-/**
- * Everything shared between TeleOp and Autonomous lives here: hardware init,
- * the Follower, driving, and telemetry. Add this season's subsystems
- * (intake, outtake, whatever the game needs) as more methods here once the
- * robot is built, the way the old Robot class held everything in one place.
- * testing: @10415warbotscoding is present; branch merge successful.
- */
 public class Robot {
 
     public final Follower follower;
+    public final GameVision vision;
 
     private final Telemetry telemetry;
     private final Gamepad gamepad1;
@@ -35,6 +29,7 @@ public class Robot {
 
     public boolean redAlliance;
     private boolean fieldCentric = true;
+    private boolean endgameAlerted = false;
 
     private String[] startPoseOptions = new String[0];
     private int startPoseIndex = 0;
@@ -46,12 +41,21 @@ public class Robot {
         this.redAlliance = redAlliance;
 
         follower = Constants.create(hardwareMap);
+        vision = new GameVision(hardwareMap, redAlliance);
 
-        intakeMotor = hardwareMap.get(DcMotor.class, "intake");
-        launchMotor = hardwareMap.get(DcMotor.class, "launch");
+        intakeMotor = getMotor(hardwareMap, "intake");
+        launchMotor = getMotor(hardwareMap, "launch");
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
+    }
+
+    private static DcMotor getMotor(HardwareMap hardwareMap, String name) {
+        try {
+            return hardwareMap.get(DcMotor.class, name);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public void toggleAlliance() {
@@ -106,11 +110,15 @@ public class Robot {
     }
 
     public void intake(boolean on) {
-        intakeMotor.setPower(on ? 1 : 0);
+        if (intakeMotor != null) {
+            intakeMotor.setPower(on ? 1 : 0);
+        }
     }
 
     public void launch(boolean on) {
-        launchMotor.setPower(on ? 1 : 0);
+        if (launchMotor != null) {
+            launchMotor.setPower(on ? 1 : 0);
+        }
     }
 
     public double headingTo(double x, double y) {
@@ -136,6 +144,14 @@ public class Robot {
         return pathTo(Points.get(name));
     }
 
+    public Path pathToFacing(Pose target, Pose face) {
+        return line(follower.pose(), target).facingPoint(face);
+    }
+
+    public Path pathToFacing(String target, String face) {
+        return pathToFacing(Points.get(target), Points.get(face));
+    }
+
     public Path curveTo(Pose... through) {
         Pose[] points = new Pose[through.length + 1];
         points[0] = follower.pose();
@@ -157,6 +173,14 @@ public class Robot {
 
     public void followTo(String name) {
         follower.follow(pathTo(name));
+    }
+
+    public void followToFacing(Pose target, Pose face) {
+        follower.follow(pathToFacing(target, face));
+    }
+
+    public void followToFacing(String target, String face) {
+        follower.follow(pathToFacing(target, face));
     }
 
     public void followCurve(Pose... through) {
@@ -189,6 +213,9 @@ public class Robot {
 
     public void stop() {
         follower.stop();
+        intake(false);
+        launch(false);
+        vision.close();
     }
 
     public void updateTelemetry() {
@@ -201,10 +228,34 @@ public class Robot {
         telemetry.update();
     }
 
+    public void updateTelemetry(double matchTime) {
+        if (!endgameAlerted && matchTime >= 90) {
+            gamepad1.rumble(500);
+            gamepad2.rumble(500);
+            endgameAlerted = true;
+        }
+
+        telemetry.addData("match time", "%.0f", matchTime);
+        telemetry.addData("endgame", matchTime >= 90);
+        updateTelemetry();
+    }
+
     public Step stepTo(String point) {
         return new Step() {
             public void start() {
                 followTo(point);
+            }
+
+            public boolean isDone() {
+                return !busy();
+            }
+        };
+    }
+
+    public Step stepToFacing(String target, String face) {
+        return new Step() {
+            public void start() {
+                followToFacing(target, face);
             }
 
             public boolean isDone() {
