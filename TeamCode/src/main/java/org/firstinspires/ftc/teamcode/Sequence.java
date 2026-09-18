@@ -20,6 +20,8 @@ public class Sequence {
             started = true;
         }
 
+        current.update();
+
         if (current.isDone()) {
             current.stop();
             index++;

@@ -43,6 +43,7 @@ public class AutoTemplate extends OpMode {
                 Step.named("to hive",
                         Step.parallel(robot.stepTo("hive"), robot.stepIntakeFor(true, 1))),
                 Step.named("launch", robot.stepLaunchFor(true, 1.5)),
+                Step.named("align", robot.stepAlignPollen(1)),
                 Step.named("next leg",
                         Step.race(
                                 Step.branch(() -> robot.vision.seesPollen(),

@@ -6,6 +6,8 @@ public interface Step {
 
     default void start() {}
 
+    default void update() {}
+
     boolean isDone();
 
     default void stop() {}
@@ -18,6 +20,10 @@ public interface Step {
         return new Step() {
             public void start() {
                 step.start();
+            }
+
+            public void update() {
+                step.update();
             }
 
             public boolean isDone() {
@@ -74,6 +80,10 @@ public interface Step {
                 chosen.start();
             }
 
+            public void update() {
+                chosen.update();
+            }
+
             public boolean isDone() {
                 return chosen.isDone();
             }
@@ -100,6 +110,12 @@ public interface Step {
                 }
             }
 
+            public void update() {
+                for (Step s : steps) {
+                    s.update();
+                }
+            }
+
             public boolean isDone() {
                 for (Step s : steps) {
                     if (!s.isDone()) return false;
@@ -120,6 +136,12 @@ public interface Step {
             public void start() {
                 for (Step s : steps) {
                     s.start();
+                }
+            }
+
+            public void update() {
+                for (Step s : steps) {
+                    s.update();
                 }
             }
 

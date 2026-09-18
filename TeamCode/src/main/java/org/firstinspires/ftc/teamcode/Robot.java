@@ -99,6 +99,11 @@ public class Robot {
             return;
         }
 
+        if (gamepad1.left_bumper && vision.seesPollen()) {
+            trackPollen();
+            return;
+        }
+
         DrivePowers powers = new DrivePowers(-gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x);
 
         if (fieldCentric) {
@@ -107,6 +112,11 @@ public class Robot {
         }
 
         follower.manual(powers);
+    }
+
+    public void trackPollen() {
+        double offset = vision.pollenOffset();
+        follower.manual(new DrivePowers(0, 0, -offset * 0.5));
     }
 
     public void intake(boolean on) {
@@ -278,6 +288,28 @@ public class Robot {
 
     public Step stepAim(String point, double seconds) {
         return Step.timed(seconds, () -> aimAt(point));
+    }
+
+    public Step stepAlignPollen(double seconds) {
+        return new Step() {
+            long startTime;
+
+            public void start() {
+                startTime = System.nanoTime();
+            }
+
+            public void update() {
+                trackPollen();
+            }
+
+            public boolean isDone() {
+                return (System.nanoTime() - startTime) / 1e9 >= seconds;
+            }
+
+            public void stop() {
+                follower.manual(new DrivePowers(0, 0, 0));
+            }
+        };
     }
 
     public Step stepIntake(boolean on) {

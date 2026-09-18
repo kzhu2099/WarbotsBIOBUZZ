@@ -4,6 +4,7 @@ import com.pedropathing.math.Pose;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 public class Points {
 
@@ -23,5 +24,9 @@ public class Points {
 
     public static boolean has(String name) {
         return points.containsKey(name);
+    }
+
+    public static void mirror(String from, String to, Function<Pose, Pose> mirrorFn) {
+        set(to, mirrorFn.apply(get(from)));
     }
 }
