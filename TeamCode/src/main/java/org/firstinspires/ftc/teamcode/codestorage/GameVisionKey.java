@@ -2,116 +2,69 @@ package org.firstinspires.ftc.teamcode.codestorage;
 
 import android.util.Size;
 
+import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.teamcode.BallDetection;
+import org.firstinspires.ftc.teamcode.BallOwner;
+import org.firstinspires.ftc.teamcode.BallType;
 import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
 import org.firstinspires.ftc.vision.opencv.ColorRange;
 import org.firstinspires.ftc.vision.opencv.ImageRegion;
 import org.opencv.core.RotatedRect;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// ANSWER KEY - this is the filled-in version of the GameVision template.
-// It is not meant to sit in the project next to GameVision.java (same class
-// name, same package - two copies won't compile together). Use it to check
-// work or explain the reasoning, then delete it or keep it outside src/.
+// ANSWER KEY for practice/GameVisionPractice.java.
+//
+// AUDIT NOTE: the previous version of this file produced
+// MemoryPalace.Sighting objects and only tracked a single Nectar color (no
+// our-balls-vs-opponent-balls distinction at all - the exact thing the
+// project brief calls out as "not optional"). MemoryPalace no longer
+// exists (renamed to BallMap, whose entries are Ball/BallDetection
+// objects), and this key now matches the real, three-locator
+// implementation the production GameVision class uses.
 
-public class GameVisionKey {
+public class GameVisionKey extends CameraKey {
 
-    // Camera images are analyzed at a fixed resolution, not whatever the
-    // camera's native size is - smaller means faster processing, and we
-    // don't need much detail to tell "there's a yellow blob over there."
-    // Every pixel measurement in this class (offsets, filter sizes) is only
-    // meaningful relative to this number, so it lives in one place.
     private static final int FRAME_WIDTH = 320;
 
-    // VisionPortal is the thing that actually owns the camera and runs
-    // processors on every frame. A "processor" is a plug-in that looks at
-    // each frame and extracts something - here, colored blobs.
-    private final VisionPortal portal;
+    // Placeholders. FOV comes from the ArduCam's spec sheet. To find
+    // DISTANCE_CALIBRATION: put a ball at a known distance D (inches)
+    // directly in front of the camera, read the contour area A it reports,
+    // then DISTANCE_CALIBRATION = D * sqrt(A).
+    private static final double CAMERA_HORIZONTAL_FOV_DEGREES = 60;
+    private static final double DISTANCE_CALIBRATION = 1000;
+    private static final double CAMERA_FORWARD_OFFSET_INCHES = 6.0;
+    private static final double CAMERA_LATERAL_OFFSET_INCHES = 0.0;
+    private static final double BASE_CONFIDENCE = 0.75;
+
     private final ColorBlobLocatorProcessor pollenLocator;
-    private final ColorBlobLocatorProcessor nectarLocator;
+    private final ColorBlobLocatorProcessor redLocator;
+    private final ColorBlobLocatorProcessor blueLocator;
 
-    public GameVisionKey(HardwareMap hardwareMap, boolean redAlliance) {
-        VisionPortal builtPortal;
-        ColorBlobLocatorProcessor pollen;
-        ColorBlobLocatorProcessor nectar;
-
-        try {
-            // hardwareMap.get() throws if "Webcam 1" isn't in the current
-            // robot config - same failure mode as a motor with the wrong
-            // name. We catch that below so a robot without a camera wired
-            // up yet still boots; vision methods just report nothing seen.
-            WebcamName webcam = hardwareMap.get(WebcamName.class, "Webcam 1");
-
-            // Two separate locators because a blob detector only looks for
-            // ONE color range at a time. Pollen is always yellow. Nectar's
-            // color depends on which alliance we are, so we pick RED or
-            // BLUE based on the redAlliance flag passed in.
-            pollen = locator(ColorRange.YELLOW);
-            nectar = locator(redAlliance ? ColorRange.RED : ColorRange.BLUE);
-
-            // A VisionPortal can run several processors on the same camera
-            // feed at once - that's why both locators get added to the one
-            // portal instead of needing two cameras.
-            builtPortal = new VisionPortal.Builder()
-                    .setCamera(webcam)
-                    .addProcessor(pollen)
-                    .addProcessor(nectar)
-                    .setCameraResolution(new Size(FRAME_WIDTH, 240))
-                    .build();
-        } catch (Exception e) {
-            // Camera not configured yet, or failed to open. Everything
-            // downstream treats null locators as "nothing detected" instead
-            // of crashing the whole robot over a missing webcam.
-            builtPortal = null;
-            pollen = null;
-            nectar = null;
-        }
-
-        portal = builtPortal;
-        pollenLocator = pollen;
-        nectarLocator = nectar;
+    public GameVisionKey(HardwareMap hardwareMap) {
+        super(hardwareMap, "Webcam 1", new Size(FRAME_WIDTH, 240),
+                locator(ColorRange.YELLOW), locator(ColorRange.RED), locator(ColorRange.BLUE));
+        // Index has to match the order those three locators were passed to
+        // super() above.
+        pollenLocator = processor(0);
+        redLocator = processor(1);
+        blueLocator = processor(2);
     }
 
-    // Builds one color locator. Pulled into its own method because we need
-    // the exact same setup twice (once per color) and repeating a five-line
-    // builder chain with one word changed is how bugs sneak in.
     private static ColorBlobLocatorProcessor locator(ColorRange color) {
         return new ColorBlobLocatorProcessor.Builder()
                 .setTargetColorRange(color)
-                // EXTERNAL_ONLY: only the outer outline of each blob matters
-                // to us. A game ball won't have meaningful holes in it, so
-                // we don't need the processor to also track internal
-                // contours - that's wasted CPU time for no benefit here.
                 .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)
-                // entireFrame(): look at the whole camera image. Once the
-                // camera is actually mounted on the robot, narrowing this to
-                // just the floor area in front of it (using
-                // ImageRegion.asUnityCenterCoordinates(...)) will cut down
-                // on false positives from anything outside the field.
                 .setRoi(ImageRegion.entireFrame())
-                // Draws the detected outline on the camera preview stream so
-                // you can SEE what it's picking up while testing. Costs a
-                // little performance; harmless to leave on.
                 .setDrawContours(true)
-                // Blurring the image slightly before color-matching smooths
-                // out small lighting variations and pixel noise, so you get
-                // one solid blob instead of a speckled cluster of tiny ones.
                 .setBlurSize(5)
                 .build();
     }
 
-    // Every frame, a locator can report a bunch of blobs, including tiny
-    // ones from stray reflections or noise. This filters those out by area
-    // (in pixels) so only real, roughly-ball-sized blobs remain. The 50/
-    // 20000 bounds are a starting guess - once the camera is actually
-    // mounted at its real height and angle, watch the telemetry/preview and
-    // tighten these to match how big a real Pollen or Nectar ball actually
-    // looks on screen at typical pickup distance.
     private List<ColorBlobLocatorProcessor.Blob> blobs(ColorBlobLocatorProcessor locator) {
         if (locator == null) return Collections.emptyList();
         List<ColorBlobLocatorProcessor.Blob> blobs = locator.getBlobs();
@@ -120,58 +73,66 @@ public class GameVisionKey {
         return blobs;
     }
 
-    // getBlobs() returns blobs sorted biggest-first already, so blobs.get(0)
-    // is "the blob we're most confident is real," not an arbitrary pick.
-    // getBoxFit() is the smallest rectangle that fully contains the blob;
-    // its .center.x is the blob's horizontal pixel position on screen.
-    //
-    // Raw pixel position isn't useful by itself (depends on resolution), so
-    // we convert it to a -1..1 scale relative to the middle of the frame:
-    //   center.x == 0            -> -1.0  (touching the left edge)
-    //   center.x == FRAME_WIDTH/2 ->  0.0  (dead center)
-    //   center.x == FRAME_WIDTH   -> +1.0  (touching the right edge)
-    // That -1..1 number is easy to turn into a turning direction later
-    // ("offset > 0 means turn right") without caring what resolution the
-    // camera happens to be running at.
+    // Which locator is "ours" is resolved here, at query time, from
+    // whatever alliance is passed in - NOT baked into the constructor.
+    // That's what makes toggling alliance after construction safe.
+    private ColorBlobLocatorProcessor ownLocator(boolean redAlliance) {
+        return redAlliance ? redLocator : blueLocator;
+    }
+
+    private ColorBlobLocatorProcessor opponentLocator(boolean redAlliance) {
+        return redAlliance ? blueLocator : redLocator;
+    }
+
     private double offsetOf(List<ColorBlobLocatorProcessor.Blob> blobs) {
         if (blobs.isEmpty()) return 0;
         RotatedRect box = blobs.get(0).getBoxFit();
         return (box.center.x - FRAME_WIDTH / 2.0) / (FRAME_WIDTH / 2.0);
     }
 
-    // VisionPortal holds the camera open. If it's never released, the next
-    // OpMode that tries to open the same camera can fail to start. Robot
-    // calls this from stop(), matching how intake()/launch() get shut off
-    // there too - anything the robot turned on, stop() turns back off.
-    public void close() {
-        if (portal != null) {
-            portal.close();
-        }
-    }
-
-    // This and the three methods below are the ones left blank in the
-    // template. Each is a thin, one-line composition of blobs()/offsetOf()
-    // above - the point of leaving these out isn't that they're hard, it's
-    // that they're the smallest possible unit someone new can own end to
-    // end: pick the right locator field, call the right helper, done.
     public boolean seesPollen() {
         return !blobs(pollenLocator).isEmpty();
     }
 
-    // Same shape as seesPollen(), swapped to the Nectar locator. Two nearly
-    // identical methods instead of one method with a boolean/color argument
-    // on purpose - callers elsewhere (Robot, Auto) read as
-    // "robot.vision.seesPollen()", not "robot.vision.sees(POLLEN)", which
-    // is easier to search for and harder to call with the wrong color.
-    public boolean seesNectar() {
-        return !blobs(nectarLocator).isEmpty();
+    public boolean seesOwnNectar(boolean redAlliance) {
+        return !blobs(ownLocator(redAlliance)).isEmpty();
+    }
+
+    public boolean seesOpponentNectar(boolean redAlliance) {
+        return !blobs(opponentLocator(redAlliance)).isEmpty();
     }
 
     public double pollenOffset() {
         return offsetOf(blobs(pollenLocator));
     }
 
-    public double nectarOffset() {
-        return offsetOf(blobs(nectarLocator));
+    public List<BallDetection> detections(Pose robotPose, double nowSeconds, boolean redAlliance) {
+        List<BallDetection> result = new ArrayList<>();
+        addDetections(result, pollenLocator, BallType.POLLEN, BallOwner.OURS, robotPose, nowSeconds);
+        addDetections(result, ownLocator(redAlliance), BallType.NECTAR, BallOwner.OURS, robotPose, nowSeconds);
+        addDetections(result, opponentLocator(redAlliance), BallType.NECTAR, BallOwner.OPPONENT, robotPose, nowSeconds);
+        return result;
+    }
+
+    private void addDetections(List<BallDetection> out, ColorBlobLocatorProcessor locator,
+                                BallType type, BallOwner owner, Pose robotPose, double nowSeconds) {
+        for (ColorBlobLocatorProcessor.Blob blob : blobs(locator)) {
+            RotatedRect box = blob.getBoxFit();
+            double normalizedX = (box.center.x - FRAME_WIDTH / 2.0) / (FRAME_WIDTH / 2.0);
+            double bearingDegrees = normalizedX * (CAMERA_HORIZONTAL_FOV_DEGREES / 2.0);
+            double distanceInches = DISTANCE_CALIBRATION / Math.sqrt(blob.getContourArea());
+
+            double bearingRadians = Math.toRadians(bearingDegrees);
+            double robotRelForward = CAMERA_FORWARD_OFFSET_INCHES + distanceInches * Math.cos(bearingRadians);
+            double robotRelLateral = CAMERA_LATERAL_OFFSET_INCHES + distanceInches * Math.sin(bearingRadians);
+
+            double heading = robotPose.heading();
+            double fieldX = robotPose.x() + robotRelForward * Math.cos(heading) - robotRelLateral * Math.sin(heading);
+            double fieldY = robotPose.y() + robotRelForward * Math.sin(heading) + robotRelLateral * Math.cos(heading);
+            Pose fieldPose = new Pose(fieldX, fieldY, heading);
+
+            out.add(new BallDetection(type, owner, normalizedX, 0, bearingDegrees, distanceInches,
+                    fieldPose, BASE_CONFIDENCE, nowSeconds));
+        }
     }
 }

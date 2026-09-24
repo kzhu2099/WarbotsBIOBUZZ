@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+/** AUDITED, UNCHANGED - see Step.java's header for why. */
 public class Sequence {
 
     private final Step[] steps;

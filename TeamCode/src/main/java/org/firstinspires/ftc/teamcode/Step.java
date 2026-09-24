@@ -2,6 +2,17 @@ package org.firstinspires.ftc.teamcode;
 
 import java.util.function.Supplier;
 
+/**
+ * AUDITED, UNCHANGED: this class is generic (no game-specific or hardware-
+ * specific logic), so it needed no rewrite - see project brief section 29.
+ * It is used both by the simple Step/Sequence-based autonomous templates
+ * (AutoTemplate, LeaveAndPark) and, in a much smaller way, inside Robot's
+ * own step*() helpers. The dynamic autonomous system (AutonomousController)
+ * does NOT build a Sequence at all - it is a real state machine that can
+ * change its mind, which a fixed array of Steps fundamentally cannot do
+ * (see project brief section 29's warning against a 40-step static
+ * Sequence pretending to be dynamic).
+ */
 public interface Step {
 
     default void start() {}
