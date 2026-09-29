@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
+import com.pedropathing.utils.Angle;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -75,14 +76,8 @@ public class BallMap {
             double distance = Math.hypot(dx, dy);
             if (distance > maxRangeInches) return false;
 
-            double bearing = normalize(Math.atan2(dy, dx) - robotPose.heading());
+            double bearing = Angle.normalizeSigned(Math.atan2(dy, dx) - robotPose.heading());
             return Math.abs(bearing) <= halfAngleRadians;
-        }
-
-        private static double normalize(double angle) {
-            while (angle > Math.PI) angle -= 2 * Math.PI;
-            while (angle < -Math.PI) angle += 2 * Math.PI;
-            return angle;
         }
     }
 

@@ -71,4 +71,44 @@ public final class RobotGeometry {
 
     /** Standard game ball diameter (Pollen/Nectar), for reference. Inches. */
     public static final double BALL_DIAMETER_INCHES = 3.0;
+
+    // ---- Cell camera mounting (upward-facing AprilTag camera) -----------
+    //
+    // The FTC SDK's AprilTagProcessor.setCameraPose(position, orientation)
+    // needs to know exactly where this camera sits relative to the robot's
+    // tracked center point in order to compute detection.robotPose (the
+    // SDK's own directly-computed field-relative robot pose - see
+    // CellVision). Get this right and the SDK does the "where is the robot"
+    // trigonometry itself, more robustly (full 3D) than this project's own
+    // 2D estimateFieldPose() fallback math.
+    //
+    // Per the FTC SDK's own camera-pose convention (see
+    // ConceptAprilTagLocalization.java's docstring): position is (x=right+,
+    // y=forward+, z=up+) from robot center, and - importantly - ZERO
+    // rotation (yaw=pitch=roll=0) means "camera pointing straight up,"
+    // which is exactly what this camera actually does. That is why all
+    // three angles below are 0 by default, not a placeholder guess: a
+    // level, straight-up-facing mount needs no rotation at all. You only
+    // need to change yaw/pitch/roll from 0 if the real camera is tilted
+    // off vertical or rotated away from facing straight along the robot's
+    // forward axis.
+    //
+    // TODO: VERIFY the position numbers (and the "perfectly vertical, no
+    // tilt" assumption) by actually measuring the real camera mount once
+    // built - a wrong number here doesn't cause a compile or runtime
+    // error, it just makes detection.robotPose subtly wrong in a way
+    // that's easy to miss until localization looks "close but not quite
+    // right."
+    /** Camera position forward(+)/back(-) of robot center, inches. */
+    public static final double CELL_CAMERA_FORWARD_INCHES = 0.0;
+    /** Camera position right(+)/left(-) of robot center, inches. */
+    public static final double CELL_CAMERA_LATERAL_INCHES = 0.0;
+    /** Camera height above the field floor, inches. */
+    public static final double CELL_CAMERA_HEIGHT_INCHES = 12.0;
+    /** Camera yaw, degrees - 0 = facing the same direction as robot forward. */
+    public static final double CELL_CAMERA_YAW_DEGREES = 0.0;
+    /** Camera pitch, degrees - 0 = perfectly vertical (straight up). */
+    public static final double CELL_CAMERA_PITCH_DEGREES = 0.0;
+    /** Camera roll, degrees - 0 = not rotated about its own lens axis. */
+    public static final double CELL_CAMERA_ROLL_DEGREES = 0.0;
 }

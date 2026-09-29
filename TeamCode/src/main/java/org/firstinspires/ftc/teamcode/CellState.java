@@ -1,10 +1,10 @@
 package org.firstinspires.ftc.teamcode;
 
 /**
- * How much we currently trust a {@link Hive}'s recorded field position.
+ * How much we currently trust a {@link Cell}'s recorded field position.
  *
  *   UNKNOWN   - Never observed this match. fieldPose is only a rough,
- *               pre-configured guess (from Points/field constants).
+ *               pre-configured guess (from FieldTagLibrary).
  *   DETECTED  - Its AprilTag is in view right now (or was within the last
  *               fraction of a second). Highest confidence.
  *   CONFIRMED - Not currently visible, but was DETECTED recently enough
@@ -15,7 +15,7 @@ package org.firstinspires.ftc.teamcode;
  *               but the controller should treat aiming as lower-confidence
  *               and telemetry should say so.
  */
-public enum HiveState {
+public enum CellState {
     UNKNOWN,
     DETECTED,
     CONFIRMED,

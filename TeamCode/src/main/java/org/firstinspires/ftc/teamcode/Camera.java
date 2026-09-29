@@ -9,10 +9,10 @@ import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.VisionProcessor;
 
 /**
- * Shared by GameVision and HiveVision: opens one webcam, attaches whatever
+ * Shared by GameVision and CellVision: opens one webcam, attaches whatever
  * processors the subclass needs, and never crashes the robot if that
  * webcam isn't plugged in / configured yet. This is the real, working
- * implementation - production code (Robot -> GameVision/HiveVision) uses
+ * implementation - production code (Robot -> GameVision/CellVision) uses
  * this directly. The fill-in-the-blank teaching version of this same idea
  * lives separately in practice/CameraPractice.java so new members can
  * build it themselves without touching (or blocking) the real robot.

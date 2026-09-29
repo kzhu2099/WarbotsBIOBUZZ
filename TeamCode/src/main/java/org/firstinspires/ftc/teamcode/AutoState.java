@@ -11,10 +11,11 @@ package org.firstinspires.ftc.teamcode;
  *     (all three are "ask the planner for a route given current world
  *     state," which is one operation; only the trigger differs, and the
  *     trigger is recorded separately as a ReplanReason for telemetry).
- *   - NAVIGATE_TO_HIVE -> DRIVE_TO_HIVE (naming consistency with
- *     DRIVE_TO_BALL).
+ *   - NAVIGATE_TO_HIVE -> DRIVE_TO_CELL (naming consistency with
+ *     DRIVE_TO_BALL; also renamed from the project's earlier "Hive"
+ *     terminology - see Cell's Javadoc for why).
  *   - UPDATE_MEMORY is not a discrete state - the world model (BallMap /
- *     HiveMap / Localization) is updated every loop tick regardless of
+ *     CellMap / Localization) is updated every loop tick regardless of
  *     which state we are in, since perception should never pause.
  *   - REPLAN_COLLECTION is not a separate visited state - any state can
  *     transition back to PLAN, carrying a ReplanReason.
@@ -26,8 +27,8 @@ public enum AutoState {
     DRIVE_TO_BALL,
     ACQUIRE_BALL,
     VERIFY_ACQUISITION,
-    DRIVE_TO_HIVE,
-    AIM_AT_HIVE,
+    DRIVE_TO_CELL,
+    AIM_AT_CELL,
     SCORE,
     VERIFY_SCORE,
     DECIDE_NEXT_CYCLE,

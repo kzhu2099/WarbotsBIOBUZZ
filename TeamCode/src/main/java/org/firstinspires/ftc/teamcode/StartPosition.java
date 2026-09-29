@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.pedropathing.api.PoseFactory;
 import com.pedropathing.math.Pose;
 
 /**
@@ -9,15 +10,26 @@ import com.pedropathing.math.Pose;
  * RED is mirrored automatically (see {@link #pose}) - measure once,
  * trust both.
  *
+ * Mirroring uses PedroPathing's own PoseFactory.mirrorX() (added/fixed in
+ * v3.0.1 - see that release's changelog) rather than hand-rolled mirror
+ * math, since that's exactly the kind of easy-to-get-subtly-wrong
+ * coordinate geometry a maintained library is worth trusting over a
+ * one-off formula.
+ *
  * TODO: VERIFY every pose against the real field once starting tiles are
  * finalized. These are placeholders based on a generic field layout
- * (144in x 144in, origin at a corner, 0 heading = facing +X).
+ * (144in x 144in, origin at a corner, 0 heading = facing +X). TODO: VERIFY
+ * the field actually mirrors across x = 72 (left-right) and not across y
+ * (front-back) - swap mirrorX for mirrorY below if the real field's
+ * alliance walls are arranged that way instead.
  */
 public enum StartPosition {
 
     LEFT(new Pose(36, RobotGeometry.HALF_LENGTH_INCHES, Math.toRadians(90))),
     CENTER(new Pose(72, RobotGeometry.HALF_LENGTH_INCHES, Math.toRadians(90))),
     RIGHT(new Pose(108, RobotGeometry.HALF_LENGTH_INCHES, Math.toRadians(90)));
+
+    private static final PoseFactory MIRROR = PoseFactory.radians().mirrorX(Points.FIELD_SIZE / 2.0);
 
     private final Pose bluePose;
 
@@ -26,16 +38,10 @@ public enum StartPosition {
     }
 
     /** This starting pose, mirrored across the field's centerline for RED
-     *  if needed. Mirroring assumes a field symmetric about x = FIELD_SIZE/2
-     *  with heading mirrored as (PI - heading) - TODO: VERIFY this matches
-     *  the real field's actual symmetry once known; some fields mirror
-     *  across Y instead of X depending on alliance wall layout. */
+     *  if needed. */
     public Pose pose(boolean redAlliance) {
         if (!redAlliance) return bluePose;
-
-        double mirroredX = Points.FIELD_SIZE - bluePose.x();
-        double mirroredHeading = normalize(Math.PI - bluePose.heading());
-        return new Pose(mirroredX, bluePose.y(), mirroredHeading);
+        return MIRROR.of(bluePose.x(), bluePose.y(), bluePose.heading());
     }
 
     /** A conservative default parking pose near this starting position,
@@ -46,11 +52,5 @@ public enum StartPosition {
         double parkX = start.x() + Math.cos(start.heading()) * 24;
         double parkY = start.y() + Math.sin(start.heading()) * 24;
         return new Pose(parkX, parkY, start.heading());
-    }
-
-    private static double normalize(double angle) {
-        while (angle > Math.PI) angle -= 2 * Math.PI;
-        while (angle < -Math.PI) angle += 2 * Math.PI;
-        return angle;
     }
 }

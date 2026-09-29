@@ -33,8 +33,9 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
  * WHAT THIS CANNOT DO: no field-centric driving (that needs a real
  * heading source - NullLocalizer doesn't have one), no autonomous, no
  * aiming, no telemetry about robot position. It drives the chassis and
- * nothing more. Move up to the full TeleOp OpMode once odometry,
- * Foresight tuning, and the mechanisms are ready.
+ * nothing more. Move up to {@link OdometryTeleOp} once odometry is wired
+ * up, then to the full TeleOp OpMode once Foresight tuning and the
+ * mechanisms are ready.
  */
 @TeleOp(name = "Drive Only TeleOp")
 public class DriveOnlyTeleOp extends OpMode {

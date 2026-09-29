@@ -26,7 +26,7 @@ import static com.pedropathing.api.Paths.line;
  * change the world -> sensors observe again" (both halves happen inside
  * {@link #updateWorldModel}, which both AutonomousController and TeleOp
  * call once per loop). {@link AutonomousController} owns the "planner
- * decides -> PedroPathing executes" half. Localization, BallMap, HiveMap,
+ * decides -> PedroPathing executes" half. Localization, BallMap, CellMap,
  * and Inventory are each created exactly ONCE, here, and handed out by
  * reference (through {@link #worldState}) - nothing else in the project
  * keeps its own copy of any of them, which is what actually closes the
@@ -39,12 +39,12 @@ public class Robot {
     public final Localization localization;
 
     public final GameVision gameVision;
-    public final HiveVision hiveVision;
+    public final CellVision cellVision;
     public final ScoringMechanism mechanism;
 
     public final Inventory inventory;
     public final BallMap ballMap;
-    public final HiveMap hiveMap;
+    public final CellMap cellMap;
 
     private final Telemetry telemetry;
     private final Gamepad gamepad1;
@@ -75,15 +75,22 @@ public class Robot {
 
         follower = Constants.create(hardwareMap);
         localization = new Localization(follower);
+        // Every fresh Robot starts by wanting a resync: right after
+        // init/reset is exactly when odometry is most likely to be wrong
+        // (never zeroed, or zeroed at the wrong spot) and a trusted tag
+        // sighting should fully win rather than be ignored or lightly
+        // blended in - see Localization's Javadoc for why that's the
+        // default behavior rather than continuous correction.
+        localization.requestResync();
 
         gameVision = new GameVision(hardwareMap);
-        hiveVision = new HiveVision(hardwareMap);
+        cellVision = new CellVision(hardwareMap);
         mechanism = new ScoringMechanism(hardwareMap);
 
         inventory = new Inventory();
         ballMap = new BallMap();
-        hiveMap = new HiveMap();
-        hiveMap.selectOurHive(redAlliance);
+        cellMap = new CellMap();
+        cellMap.selectOurAlliance(redAlliance);
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -121,16 +128,19 @@ public class Robot {
         follower.update();
         localization.update(nowSeconds);
 
-        if (hiveVision.isAvailable()) {
-            for (AprilTagObservation observation : hiveVision.observations(nowSeconds)) {
-                if (observation.role == AprilTagRole.HIVE_TAG) {
-                    hiveMap.updateFromTag(observation, localization.pose(), nowSeconds);
+        if (cellVision.isAvailable()) {
+            for (AprilTagObservation observation : cellVision.observations(nowSeconds)) {
+                if (observation.role == AprilTagRole.CELL_TAG) {
+                    cellMap.updateFromTag(observation, localization.pose(), nowSeconds);
                 } else if (observation.role == AprilTagRole.NAVIGATION_TAG) {
-                    localization.applyAprilTagCorrection(observation, nowSeconds);
+                    Pose knownTagFieldPose = FieldTagLibrary.knownFieldPoseOf(observation.tagId);
+                    if (knownTagFieldPose != null) {
+                        localization.applyAprilTagCorrection(observation, knownTagFieldPose, nowSeconds);
+                    }
                 }
             }
         }
-        hiveMap.tick(nowSeconds);
+        cellMap.tick(nowSeconds);
 
         if (gameVision.isAvailable()) {
             ballMap.observe(gameVision.detections(localization.pose(), nowSeconds, redAlliance),
@@ -153,8 +163,8 @@ public class Robot {
 
     /** A read-only view of the current world model for the planner/controller. */
     public WorldState worldState(double timeRemainingSeconds, double nowSeconds) {
-        return new WorldState(localization, inventory, ballMap, hiveMap,
-                gameVision.isAvailable(), hiveVision.isAvailable(), timeRemainingSeconds, nowSeconds);
+        return new WorldState(localization, inventory, ballMap, cellMap,
+                gameVision.isAvailable(), cellVision.isAvailable(), timeRemainingSeconds, nowSeconds);
     }
 
     // ---- Alliance / starting configuration -------------------------------
@@ -162,7 +172,7 @@ public class Robot {
     public void toggleAlliance() {
         if (gamepad1.xWasPressed()) {
             redAlliance = !redAlliance;
-            hiveMap.selectOurHive(redAlliance);
+            cellMap.selectOurAlliance(redAlliance);
         }
     }
 
@@ -193,7 +203,7 @@ public class Robot {
         }
 
         if (gamepad1.y) {
-            aimAtOwnHive();
+            aimAtOwnCell();
             return;
         }
 
@@ -213,7 +223,16 @@ public class Robot {
             powers = ManualDrive.fieldCentric(powers, follower.pose().heading(), allianceOffset);
         }
 
-        follower.manual(powers);
+        // driveOrHold (PedroPathing v3.0.1+) actively holds position when
+        // the driver lets go of the sticks and the robot has settled,
+        // instead of just cutting power and coasting/being pushable. Safe
+        // here specifically because this Robot's Follower is built with a
+        // real, tuned Algorithm (see pedro.Constants.create()) - hold()
+        // routes through algorithm.calculateHold() internally, which is
+        // exactly why DriveOnlyTeleOp/OdometryTeleOp (built with a null
+        // Algorithm before Foresight is tuned) must NOT use this and stick
+        // to plain follower.manual() instead.
+        ManualDrive.driveOrHold(follower, powers);
     }
 
     public void trackPollen() {
@@ -239,12 +258,12 @@ public class Robot {
         aimAt(target.x(), target.y());
     }
 
-    /** Aims using the real, computed hive target - not a Points lookup and
-     *  not a hardcoded turnTo(). See Hive.computeTarget(). */
-    public void aimAtOwnHive() {
-        Hive hive = hiveMap.activeHive();
-        if (hive == null) return;
-        HiveTarget target = hive.computeTarget();
+    /** Aims using the real, computed cell target - not a Points lookup and
+     *  not a hardcoded turnTo(). See Cell.computeTarget(). */
+    public void aimAtOwnCell() {
+        Cell cell = cellMap.bestOurCell(follower.pose());
+        if (cell == null) return;
+        CellTarget target = cell.computeTarget();
         Pose pose = follower.pose();
         follower.hold(new Pose(pose.x(), pose.y(), target.aimHeadingRadians));
     }
@@ -322,7 +341,7 @@ public class Robot {
         follower.stop();
         mechanism.stopAll();
         gameVision.close();
-        hiveVision.close();
+        cellVision.close();
     }
 
     public void updateTelemetry() {
@@ -398,8 +417,8 @@ public class Robot {
         };
     }
 
-    public Step stepAimAtOwnHive(double seconds) {
-        return Step.timed(seconds, this::aimAtOwnHive);
+    public Step stepAimAtOwnCell(double seconds) {
+        return Step.timed(seconds, this::aimAtOwnCell);
     }
 
     /**

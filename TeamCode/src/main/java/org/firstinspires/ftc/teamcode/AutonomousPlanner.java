@@ -11,7 +11,7 @@ import java.util.List;
  * collecting, in what order, while steering clear of opponent balls, and
  * whether the currently-executing plan is still valid. This class has NO
  * hardware or FTC SDK dependency - it only touches {@link WorldState} and
- * the plain data model (Ball/Hive/Inventory/Pose), specifically so it can
+ * the plain data model (Ball/Cell/Inventory/Pose), specifically so it can
  * be unit-tested with simulated world state (project brief section 34)
  * without needing a robot, a camera, or even the FTC SDK.
  *
@@ -70,8 +70,8 @@ public class AutonomousPlanner {
         List<Ball> candidates = prefilterCandidates(world);
         if (candidates.isEmpty()) return Route.EMPTY;
 
-        Hive hive = resolveScoringHive(world);
-        Pose hiveAnchor = hive != null ? hive.computeTarget().approachPose : world.robotPose();
+        Cell cell = resolveScoringCell(world);
+        Pose cellAnchor = cell != null ? cell.computeTarget().approachPose : world.robotPose();
         List<Ball> opponents = world.ballMap.opponentBalls();
 
         int maxLength = Math.min(capacity, candidates.size());
@@ -82,7 +82,7 @@ public class AutonomousPlanner {
         RouteSearchState searchState = new RouteSearchState();
         searchState.best = best;
 
-        search(candidates, used, current, world.robotPose(), hiveAnchor, opponents, maxLength, 0.0, searchState);
+        search(candidates, used, current, world.robotPose(), cellAnchor, opponents, maxLength, 0.0, searchState);
 
         return searchState.best;
     }
@@ -100,10 +100,10 @@ public class AutonomousPlanner {
      * AutonomousController decides a replan is warranted).
      */
     private void search(List<Ball> candidates, boolean[] used, List<Ball> current,
-                         Pose fromPose, Pose hiveAnchor, List<Ball> opponents,
+                         Pose fromPose, Pose cellAnchor, List<Ball> opponents,
                          int maxLength, double costSoFar, RouteSearchState searchState) {
         if (!current.isEmpty()) {
-            double totalCost = costSoFar + legCost(fromPose, hiveAnchor, opponents);
+            double totalCost = costSoFar + legCost(fromPose, cellAnchor, opponents);
             if (totalCost < searchState.best.cost) {
                 searchState.best = new Route(new ArrayList<>(current), totalCost);
             }
@@ -121,7 +121,7 @@ public class AutonomousPlanner {
 
             used[i] = true;
             current.add(candidate);
-            search(candidates, used, current, candidate.fieldPose(), hiveAnchor, opponents, maxLength, newCost, searchState);
+            search(candidates, used, current, candidate.fieldPose(), cellAnchor, opponents, maxLength, newCost, searchState);
             current.remove(current.size() - 1);
             used[i] = false;
         }
@@ -178,17 +178,18 @@ public class AutonomousPlanner {
     }
 
     /**
-     * Which hive we should currently be scoring into. In BIOBUZZ each
-     * alliance scores into its own hive, so this mostly just resolves the
-     * HiveMap's active-hive flag - but it is kept as an explicit planner
-     * responsibility (rather than the controller reaching directly into
-     * HiveMap) so a more complex "which scoring location is best right
-     * now" rule can be dropped in here later without touching the
-     * controller, if the full BIOBUZZ manual turns out to call for one.
-     * TODO: VERIFY against the full official manual once available.
+     * Which cell we should currently be scoring into. Each alliance now has
+     * two valid cells (audience-side and opposite-side) - this resolves to
+     * whichever one is currently better tracked and/or closer, via
+     * CellMap.bestOurCell(). Kept as an explicit planner responsibility
+     * (rather than the controller reaching directly into CellMap) so this
+     * decision stays in one place.
+     * TODO: VERIFY against the full official manual once available, in
+     * case scoring rules ever prefer one cell over the other for reasons
+     * beyond distance/confidence (e.g. a fill-level rule).
      */
-    public Hive resolveScoringHive(WorldState world) {
-        return world.hiveMap.activeHive();
+    public Cell resolveScoringCell(WorldState world) {
+        return world.cellMap.bestOurCell(world.robotPose());
     }
 
     /**
@@ -197,17 +198,23 @@ public class AutonomousPlanner {
      * project brief section 19 - explicit replan triggers instead of
      * rebuilding the whole plan every loop tick).
      */
-    public ReplanReason detectReplanReason(WorldState world, Ball currentTarget, Hive committedHive) {
+    public ReplanReason detectReplanReason(WorldState world, Ball currentTarget, Cell committedCell) {
         if (currentTarget != null) {
             if (currentTarget.state() == BallState.MISSING) return ReplanReason.TARGET_MISSING;
             if (currentTarget.state() == BallState.INVALID) return ReplanReason.TARGET_MISSING;
             if (currentTarget.state() == BallState.COLLECTED) return ReplanReason.TARGET_ALREADY_COLLECTED;
         }
 
-        if (committedHive != null) {
-            Hive active = world.hiveMap.activeHive();
-            if (active != null && active != committedHive) {
-                return ReplanReason.ACTIVE_HIVE_CHANGED;
+        if (committedCell != null) {
+            // Two distinct reasons a committed cell can go stale: alliance
+            // itself changed (rare - the committed cell now belongs to the
+            // wrong side entirely), or our knowledge of the OTHER
+            // same-alliance cell genuinely improved (see
+            // CellMap.shouldReconsiderCell's own Javadoc for why that
+            // check is trust-based, not distance-based).
+            boolean allianceChanged = committedCell.alliance != world.cellMap.ourAlliance();
+            if (allianceChanged || world.cellMap.shouldReconsiderCell(committedCell)) {
+                return ReplanReason.ACTIVE_CELL_CHANGED;
             }
         }
 

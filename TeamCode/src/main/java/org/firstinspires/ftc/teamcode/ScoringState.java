@@ -21,7 +21,7 @@ public enum ScoringState {
      *  mechanism is prepared to outtake on command. */
     READY_TO_SCORE,
 
-    /** Outtake motors are actively running to score into the hive. */
+    /** Outtake motors are actively running to score into the cell. */
     OUTTAKING,
 
     /** Outtake just ran; briefly continuing to make sure the mechanism

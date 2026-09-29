@@ -24,8 +24,8 @@ import org.firstinspires.ftc.teamcode.Step;
  * did not compile. It now drives the real ScoringMechanism state machine
  * through Robot.stepIntake()/stepScore().
  *
- * This intentionally does NOT use the dynamic Hive/BallMap system - the
- * hive position here is a fixed guess registered as a Point, not computed
+ * This intentionally does NOT use the dynamic Cell/BallMap system - the
+ * cell position here is a fixed guess registered as a Point, not computed
  * from a live AprilTag sighting. That's the actual, honest difference
  * between this simple template and AutoOpMode: same Step/Sequence
  * mechanics, but no perception-driven decision making.
@@ -59,14 +59,14 @@ public class AutoTemplate extends OpMode {
         Pose startPose = Points.get("start");
         // Fixed, guessed positions - NOT computed from AprilTag sightings.
         // TODO: VERIFY/adjust against the real field.
-        Points.set("hive", Points.offset(Points.FIELD_SIZE / 2, Points.FIELD_SIZE / 2, startPose.heading(), -RobotGeometry.HALF_LENGTH_INCHES));
+        Points.set("cell", Points.offset(Points.FIELD_SIZE / 2, Points.FIELD_SIZE / 2, startPose.heading(), -RobotGeometry.HALF_LENGTH_INCHES));
         Points.set("pickup", Points.offset(0, Points.FIELD_SIZE / 2, Math.toRadians(180), -RobotGeometry.HALF_LENGTH_INCHES));
 
         sequence = new Sequence(
                 Step.named("leave & collect one ball",
                         Step.parallel(robot.stepTo("pickup"), robot.stepIntake(BallType.POLLEN))),
-                Step.named("return to hive", robot.stepTo("hive")),
-                Step.named("aim", robot.stepAimAtOwnHive(0.75)),
+                Step.named("return to cell", robot.stepTo("cell")),
+                Step.named("aim", robot.stepAimAtOwnCell(0.75)),
                 Step.named("score", robot.stepScore())
         );
     }

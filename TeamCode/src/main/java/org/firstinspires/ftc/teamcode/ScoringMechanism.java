@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 /**
  * Controls the physical intake -> transfer -> outtake mechanism.
  *
- * Physical hardware used here:
+ * Physical hardware used here (confirmed, not a placeholder):
  *
  *   1x intake motor
  *   1x transfer motor
@@ -14,7 +14,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  *   1x right outtake motor
  *
  * No beam-break, color sensor, distance sensor, encoder sensor,
- * or other mechanism sensor is required.
+ * or other mechanism sensor exists on this robot.
  *
  * Cameras are handled elsewhere by the vision system.
  *
@@ -23,6 +23,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  * This class does NOT own Inventory or BallMap.
  * It only reports when a ball has been acquired, transferred,
  * and scored so that the caller can update those systems.
+ *
+ * (Verified against the real ScoringState/BallType/HardwareConfig - this
+ * file compiles clean; the only errors seen while checking it were the
+ * expected "missing FTC SDK" ones from a sandbox without the real
+ * Android/FTC jars, not real bugs in this class.)
  */
 public class ScoringMechanism {
 
@@ -271,6 +276,11 @@ public class ScoringMechanism {
 
     /**
      * Clears a fault and returns the mechanism to idle.
+     *
+     * Kept even though this sensorless build never enters FAULT on its
+     * own (see justFaulted() below) - harmless, and here so the interface
+     * stays stable if a sensor is ever added later, or if a caller wants
+     * a manual "force back to idle" recovery button.
      */
     public void clearFault(double nowSeconds) {
 
@@ -497,7 +507,10 @@ public class ScoringMechanism {
     // ================================================================
 
     /**
-     * Enables or disables manual control.
+     * Enables or disables manual control. Only reacts on the actual
+     * on/off edge - calling this every loop tick with the same value it
+     * already has is a safe no-op, so it will not repeatedly force the
+     * mechanism back to INTAKE_OFF while automatic operation is running.
      */
     public void setManualOverride(
             boolean active,

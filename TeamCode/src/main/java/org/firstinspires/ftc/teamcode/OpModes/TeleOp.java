@@ -14,7 +14,7 @@ import org.firstinspires.ftc.teamcode.ScoringState;
  * driver station's OpMode list can only meaningfully show one "TeleOp.")
  *
  * Real subsystem control (project brief section 26), not raw motors:
- * driving (with field-centric toggle, hive auto-aim, pollen auto-track),
+ * driving (with field-centric toggle, cell auto-aim, pollen auto-track),
  * intake/transfer/outtake as one automatic mechanism the driver starts
  * and stops rather than three separate raw powers, and a manual override
  * for recovering from a jam without it being possible to get the robot
