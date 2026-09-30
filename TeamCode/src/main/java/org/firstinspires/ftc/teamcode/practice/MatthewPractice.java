@@ -8,7 +8,7 @@ import com.pedropathing.follower.Follower;
 
 // AUDITED, UNCHANGED: same reasoning as AutoTemplatePractice.java.
 @Disabled
-@TeleOp(name = "TeleOp Practice")
+@TeleOp(name = "Matthew TeleOp Practice")
 public class MatthewPractice extends OpMode {
 
     public DcMotorEx frontLeft;
@@ -41,7 +41,23 @@ public class MatthewPractice extends OpMode {
     @Override
     public void loop() {
 
-//        gamepad1.
+        float gamepadJoystick1Y = -this.gamepad1.left_stick_y;
+        boolean gamepadButtonB = this.gamepad1.b;
+
+        if (gamepadButtonB) {
+            gamepadJoystick1Y /= 0.5f;
+        }
+        telemetry.addData("Button B Pressed (slow)", gamepadButtonB);
+        telemetry.addData("Joystick 1 Power", gamepadJoystick1Y);
+        telemetry.update();
+
+        frontLeft.setPower(gamepadJoystick1Y);
+        frontRight.setPower(gamepadJoystick1Y);
+
+        backLeft.setPower(gamepadJoystick1Y);
+        backRight.setPower(gamepadJoystick1Y);
+
+
 
         // HINT: Implement your control change logic here.
         // IF a specific button (like gamepad1.y) is pressed:
@@ -54,6 +70,13 @@ public class MatthewPractice extends OpMode {
 
     @Override
     public void stop() {
+
+        frontLeft.setPower(0f);
+        frontRight.setPower(0f);
+        backLeft.setPower(0f);
+        backRight.setPower(0f);
+
+
         // HINT: Safely stop all drivetrain motors here by setting powers to 0.
     }
 }
