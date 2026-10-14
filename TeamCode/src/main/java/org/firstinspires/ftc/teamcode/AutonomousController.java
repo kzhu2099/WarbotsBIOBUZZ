@@ -31,7 +31,6 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
  */
 public class AutonomousController {
 
-    // TODO: VERIFY against the real autonomous period length for the event.
     private static final double AUTONOMOUS_PERIOD_SECONDS = 30.0;
 
     // TODO: TUNE every constant below against real testing - these are

@@ -61,7 +61,7 @@ public class Camera {
      * can write e.g. "ColorBlobLocatorProcessor x = processor(0);" with no
      * explicit cast.
      */
-    @SuppressWarnings("unchecked")
+
     protected <T extends VisionProcessor> T processor(int index) {
         if (processors == null || index < 0 || index >= processors.length) return null;
         return (T) processors[index];
