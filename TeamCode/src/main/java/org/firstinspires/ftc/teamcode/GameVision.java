@@ -52,7 +52,6 @@ public class GameVision extends Camera {
      *  point (forward +, lateral + = right), inches. TODO: VERIFY. */
     private static final double CAMERA_FORWARD_OFFSET_INCHES = 6.0;
     private static final double CAMERA_LATERAL_OFFSET_INCHES = 0.0;
-
     private static final double MIN_BLOB_AREA = 50;
     private static final double MAX_BLOB_AREA = 20000;
 

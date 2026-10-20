@@ -26,15 +26,12 @@ public final class HardwareConfig {
     private HardwareConfig() {}
 
     // ---- Drivetrain (used by pedro.Constants) --------------------------
-    // TODO: VERIFY HARDWARE NAME - confirm against the actual Driver
-    // Station hardware configuration file.
     public static final String FRONT_LEFT_DRIVE = "fl";
     public static final String FRONT_RIGHT_DRIVE = "fr";
     public static final String BACK_LEFT_DRIVE = "bl";
     public static final String BACK_RIGHT_DRIVE = "br";
 
     // ---- Odometry --------------------------------------------------------
-    // TODO: VERIFY HARDWARE NAME
     public static final String ODOMETRY_COMPUTER = "odom";
 
     // ---- Cameras ----------------------------------------------------------
