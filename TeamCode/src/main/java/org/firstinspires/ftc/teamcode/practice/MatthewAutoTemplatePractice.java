@@ -29,6 +29,9 @@ public class MatthewAutoTemplatePractice extends LinearOpMode {
 
         Path startToEndPath = line(startPose,endPose).linear(startPose, endPose);
 
+        follower.setPose(startPose);
+        follower.follow(startToEndPath);
+
         // HINT: Set the follower's starting pose.
 
         // HINT: Update telemetry here to confirm initialization, then call telemetry.update()
@@ -44,7 +47,7 @@ public class MatthewAutoTemplatePractice extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-
+            follower.update();
 
             // HINT: Because this loop runs repeatedly, you MUST call the follower's update
             // method here to continuously calculate and adjust wheel powers along the path.
