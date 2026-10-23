@@ -34,7 +34,9 @@ The official separation between the two Cells in a Hive is 18.8 inches. The nomi
 7. **Autonomous timing:** the second routine has a 28-second cutoff, but that does not guarantee both shots will finish in time. Test each driving and mechanism stage under the 30-second autonomous period.
 8. **Drive directions and paths:** first verify forward, backward, strafe, and rotation directions at low risk. Then test path following at low speed in an empty field, with an emergency-stop operator present.
 
-## Official references
+## Official references and measured game values
 
-- [2026-2027 BIOBUZZ Competition Manual, TU06](https://ftc-resources.firstinspires.org/ftc/game/cm-html/BIOBUZZ%20Competition%20Manual%20-%20TU06.htm): field layout, Hive/Cell terminology, Flower and game-piece dimensions, AprilTag cluster locations, preloads, and autonomous scoring rules.
+The current official manual (TU06) specifies a nominal 144 in by 144 in FIELD; two CELLS in each HIVE approximately 18.8 in apart; POLLEN nominally 2.8 in in diameter and NECTAR nominally 3.6 in; and a FLOWER POLLEN opening approximately 2.79 in across. The AprilTag clusters are on the bottom of each CELL, face down toward the tiles, and are grouped 30-33 (red, opposite the audience), 34-37 (red, audience side), 38-41 (blue, audience side), and 42-45 (blue, opposite the audience). The autonomous period is 30 seconds. The exact field setup tolerances and scoring rules remain the manual's authority.
+
+- [2026-2027 BIOBUZZ Competition Manual, TU06](https://ftc-resources.firstinspires.org/ftc/game/cm-html/BIOBUZZ%20Competition%20Manual%20-%20TU06.htm): Sections 9.1, 9.6, 9.7, 9.8, 9.9, and 10.4 cover these values and geometry.
 - [PedroPathing: Foresight tuning](https://pedropathing.com/docs/pathing/tuning/foresight): official procedure for measuring the robot-specific Foresight configuration.
