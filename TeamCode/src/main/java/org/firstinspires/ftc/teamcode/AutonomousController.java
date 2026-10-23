@@ -198,20 +198,39 @@ public class AutonomousController {
                     break;
                 }
 
+                Cell activeCell = planner.resolveScoringCell(world);
+                if (activeCell == null || activeCell != currentCellTarget.cell) {
+                    lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+                    enter(AutoState.PLAN, now);
+                    break;
+                }
+                if (activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                    stopForUntrustedCell(now);
+                    break;
+                }
+
                 Pose pose = world.robotPose();
                 robot.follower.hold(new Pose(pose.x(), pose.y(), currentCellTarget.aimHeadingRadians));
 
                 double headingError = Angle.error(pose.heading(), currentCellTarget.aimHeadingRadians);
                 boolean aimed = Math.abs(headingError) <= AIM_TOLERANCE_RADIANS;
                 boolean timedOut = now - stateEnteredAtSeconds >= AIM_TIMEOUT_SECONDS;
-                if (aimed || timedOut) {
+                if (aimed) {
                     enter(AutoState.SCORE, now);
+                } else if (timedOut) {
+                    stopForUntrustedCell(now);
                 }
                 break;
             }
 
             case SCORE: {
                 if (robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
+                    Cell activeCell = planner.resolveScoringCell(world);
+                    if (activeCell == null || activeCell != committedCell
+                            || activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                        stopForUntrustedCell(now);
+                        break;
+                    }
                     robot.mechanism.triggerOuttake(now);
                 }
                 if (robot.mechanism.justCompletedScoreCycle()) {
@@ -329,6 +348,13 @@ public class AutonomousController {
     }
 
     // ---- Small helpers ----------------------------------------------------
+
+    private void stopForUntrustedCell(double now) {
+        lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+        robot.follower.stop();
+        robot.mechanism.stopAll();
+        enter(AutoState.EMERGENCY_STOP, now);
+    }
 
     private void enter(AutoState next, double now) {
         state = next;
