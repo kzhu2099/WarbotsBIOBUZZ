@@ -5,47 +5,11 @@ import com.pedropathing.math.Pose;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Tracks all four Cell structures on the field and answers the question
- * the project brief poses directly: "which cell am I currently supposed to
- * score at?" - never a hardcoded pose, always derived from alliance +
- * AprilTag observations + (since each alliance has two valid cells) which
- * one is actually more useful right now.
- *
- * All four are tracked, not just "ours," because the vision system may see
- * any of the sixteen real tags, and because a team strategy might
- * eventually care about the opponent cells' state too.
- */
+/** Tracks the four Cells and selects a scoring target for the chosen alliance. */
 public class CellMap {
 
-    // STANDOFF DISTANCES - what they actually are and how to get real
-    // numbers, not just "TODO: verify":
-    //
-    // A cell's fieldPose faces outward along its scoring opening (see
-    // Cell's Javadoc). "Standoff" is how far out along that direction the
-    // robot should be - APPROACH_STANDOFF_INCHES for the lineup point
-    // before committing, SCORING_STANDOFF_INCHES for where it actually
-    // fires. These are NOT a geometric fact you can measure with a tape
-    // measure on the field alone - they depend on THIS ROBOT's outtake
-    // mechanism (this robot's outtake is two motors that fire together,
-    // presumably rolling/launching a ball rather than placing it directly
-    // into the opening), so the right distance is wherever that mechanism,
-    // at whatever fixed power it runs at, reliably lands a ball in the
-    // cell. That's an empirical question, answered like this:
-    //   1. Put a ball in the mechanism, aim the robot at a real cell from
-    //      a rough guessed distance, fire the outtake.
-    //   2. Move the robot closer/farther and repeat until it reliably
-    //      scores (several tries in a row, not one lucky shot).
-    //   3. Measure that distance from the cell's opening to the robot's
-    //      tracked center point (not to the bumper) - that's
-    //      SCORING_STANDOFF_INCHES.
-    //   4. APPROACH_STANDOFF_INCHES just needs to be a bit farther out
-    //      than that - enough that the robot has room to square up
-    //      without already being close enough to clip the structure while
-    //      still turning - a few inches more than the scoring distance is
-    //      usually enough; it doesn't need its own separate tuning pass.
-    // Until that tuning happens, these are placeholder guesses - not
-    // wrong exactly, just unverified.
+    // VERIFY THESE VALUES with repeated shots. The approach pose gives
+    // room to turn; the scoring pose is the distance used to fire.
     private static final double APPROACH_STANDOFF_INCHES = 24.0;
     private static final double SCORING_STANDOFF_INCHES = 16.0;
 
@@ -98,18 +62,30 @@ public class CellMap {
     }
 
     /**
-     * Which of our two same-alliance cells is actually the better target
-     * right now, given where the robot currently is. This is a live
-     * decision, not a fixed flag - a more confidently-tracked cell always
-     * beats a less-confident one regardless of distance, and among
-     * equally-trusted cells the closer one wins. Never returns null: with
-     * both cells always present (even at CellState.UNKNOWN, using their
-     * placeholder nominal pose), there is always a "current best guess."
+     * The tag cluster is on the bottom face of each Cell, facing the tiles.
+     * From below the Hive, it identifies the Cell whose opening faces up.
+     * If neither alliance Cell has been seen, use the closer nominal pose.
      */
     public Cell bestOurCell(Pose robotPose) {
+        Cell observedCell = mostRecentlyObservedOurCell();
+        if (observedCell != null) return observedCell;
+
         Cell audience = cell(ourAlliance, FieldSide.AUDIENCE);
         Cell opposite = cell(ourAlliance, FieldSide.OPPOSITE);
         return scoreOf(audience, robotPose) >= scoreOf(opposite, robotPose) ? audience : opposite;
+    }
+
+    private Cell mostRecentlyObservedOurCell() {
+        Cell audience = cell(ourAlliance, FieldSide.AUDIENCE);
+        Cell opposite = cell(ourAlliance, FieldSide.OPPOSITE);
+        boolean audienceSeen = audience.hasEverBeenDetected();
+        boolean oppositeSeen = opposite.hasEverBeenDetected();
+
+        if (!audienceSeen && !oppositeSeen) return null;
+        if (!oppositeSeen) return audience;
+        if (!audienceSeen) return opposite;
+        return audience.lastDetectedAtSeconds() >= opposite.lastDetectedAtSeconds()
+                ? audience : opposite;
     }
 
     private static double scoreOf(Cell cell, Pose robotPose) {
@@ -135,10 +111,18 @@ public class CellMap {
      * replanning every time the robot's position nudges the distance
      * comparison one way or the other while driving around - that would
      * thrash between the two cells for no real reason. A meaningful
-     * change - the committed cell going stale, or the other one being
-     * freshly (re)detected - is what should actually trigger a replan.
+     * change - a fresh tag sighting identifies the other Cell as active -
+     * is what should trigger a replan. A stale target is unsafe to score on
+     * and must be handled by the controller rather than by guessing a side.
      */
     public boolean shouldReconsiderCell(Cell committed) {
+        if (committed == null) return true;
+
+        Cell observedCell = mostRecentlyObservedOurCell();
+        if (observedCell != null) {
+            return observedCell != committed;
+        }
+
         Cell other = otherCellFor(committed);
         return other != null && trustRank(other.state()) > trustRank(committed.state());
     }
@@ -162,7 +146,22 @@ public class CellMap {
         if (alliance == null || fieldSide == null) return;
 
         Pose observedFieldPose = observation.estimateFieldPose(robotFieldPose);
-        cell(alliance, fieldSide).updateFromSighting(observedFieldPose, observation.confidence, nowSeconds);
+        Cell visibleCell = cell(alliance, fieldSide);
+        visibleCell.updateFromSighting(observedFieldPose, observation.confidence, nowSeconds);
+
+        FieldSide pairedSide = fieldSide == FieldSide.AUDIENCE
+                ? FieldSide.OPPOSITE : FieldSide.AUDIENCE;
+        Cell pairedCell = cell(alliance, pairedSide);
+
+        // The official manual gives about 18.8 inches between a Hive's Cells.
+        // VERIFY the direction and tag-to-Cell-center offset against field CAD.
+        double dy = fieldSide == FieldSide.AUDIENCE ? 18.8 : -18.8;
+        Pose nominalPaired = FieldTagLibrary.nominalPoseFor(alliance, pairedSide);
+        pairedCell.setInferredFieldPose(new Pose(
+                observedFieldPose.x(),
+                observedFieldPose.y() + dy,
+                nominalPaired.heading()
+        ));
     }
 
     /** Ages all four cells' DETECTED/CONFIRMED/STALE state. Call once per

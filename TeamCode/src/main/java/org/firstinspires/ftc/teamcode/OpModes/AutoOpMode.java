@@ -7,17 +7,7 @@ import org.firstinspires.ftc.teamcode.AutonomousController;
 import org.firstinspires.ftc.teamcode.Robot;
 import org.firstinspires.ftc.teamcode.StartPosition;
 
-/**
- * The real, dynamic competition autonomous - everything described in the
- * project brief's "MOST IMPORTANT END-TO-END BEHAVIOR" section lives
- * behind {@link AutonomousController}; this OpMode is just the thin FTC
- * SDK wrapper around it (init/start/loop/stop plumbing, driver-station
- * start-position selection).
- *
- * This is deliberately a SEPARATE OpMode from {@link AutoTemplate} (the
- * simple Step/Sequence-based one) rather than a replacement for it - see
- * AutoTemplate's header for why keeping both is useful.
- */
+/** Competition autonomous wrapper. AutonomousController handles the state machine. */
 @Autonomous(name = "Auto (Dynamic)")
 public class AutoOpMode extends OpMode {
 
@@ -42,7 +32,10 @@ public class AutoOpMode extends OpMode {
             startIndex = (startIndex - 1 + startOptions.length) % startOptions.length;
         }
 
-        telemetry.addData("start position (dpad)", startOptions[startIndex]);
+        StartPosition start = startOptions[startIndex];
+        robot.setStartPose(start.pose(robot.redAlliance));
+        telemetry.addData("Start option (dpad)", start);
+        telemetry.addData("Start pose", robot.follower.pose());
         robot.updateTelemetry();
     }
 
