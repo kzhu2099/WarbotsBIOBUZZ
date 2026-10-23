@@ -51,19 +51,14 @@ public class Constants {
     });
 
     /**
-     * Intentionally left null. Foresight's tuned constants come from
-     * PedroPathing's real tuning workflow, not from guessing:
-     *   1. Add a `@Tuner` method to a Tuning.java class that returns a
-     *      ForesightTuner built from this project's real localizerConfig
-     *      and drivetrainConfig (see pedropathing.com/docs/pathing/tuning/foresight).
-     *   2. Deploy, then open http://192.168.43.1:10158 (the AutoTune web
-     *      dashboard) while connected to the Robot Controller, and step
-     *      through the velocity/deceleration/braking/kP identification
-     *      routines it walks you through.
-     *   3. Copy the ForesightConfig it generates (its "Java" tab) in here.
-     * create() below fails loudly instead of quietly using made-up
-     * numbers, because these values are physical properties of this
-     * specific robot's mass/wheels/battery, not something to hand-derive.
+     * Fill this with the measured result from the Foresight tuner.
+     *
+     * Tune motor directions and the Pinpoint localizer first, then run
+     * the Foresight tuner from pedro/Tuning.java at http://192.168.43.1:10158.
+     * Copy the generated ForesightConfig here. Do not use guessed gains or
+     * velocity values: they depend on this robot's drivetrain and mass.
+     *
+     * The autonomous modes refuse to start while this remains null.
      */
     public static ForesightConfig foresightConfig = null;
 
