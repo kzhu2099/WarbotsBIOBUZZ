@@ -71,7 +71,7 @@ public class AutonomousPlanner {
         if (candidates.isEmpty()) return Route.EMPTY;
 
         Cell cell = resolveScoringCell(world);
-        Pose cellAnchor = cell != null ? cell.computeTarget().approachPose : world.robotPose();
+        Pose cellAnchor = cell != null ? cell.computeTarget(world.robotPose()).approachPose : world.robotPose();
         List<Ball> opponents = world.ballMap.opponentBalls();
 
         int maxLength = Math.min(capacity, candidates.size());
