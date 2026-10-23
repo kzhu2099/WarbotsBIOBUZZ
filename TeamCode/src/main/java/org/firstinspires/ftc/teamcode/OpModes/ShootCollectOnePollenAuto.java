@@ -11,6 +11,7 @@ import org.firstinspires.ftc.teamcode.Cell;
 import org.firstinspires.ftc.teamcode.CellTarget;
 import org.firstinspires.ftc.teamcode.Robot;
 import org.firstinspires.ftc.teamcode.ScoringState;
+import org.firstinspires.ftc.teamcode.CellState;
 import org.firstinspires.ftc.teamcode.StartPosition;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
@@ -123,7 +124,7 @@ public class ShootCollectOnePollenAuto extends OpMode {
                     }
                     if (!robot.busy() && robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
                         Cell liveCell = robot.cellMap.bestOurCell(robot.follower.pose());
-                        if (liveCell == null || !liveCell.hasEverBeenDetected()) {
+                        if (!hasFreshCellSighting(liveCell)) {
                             abort("No alliance Cell tag sighting; refusing to shoot at an estimated target.");
                             break;
                         }
@@ -286,6 +287,13 @@ public class ShootCollectOnePollenAuto extends OpMode {
         robot.follower.follow(robot.pathTo(target.approachPose));
         stageStartSeconds = now;
         status = "Driving to Cell approach";
+    }
+
+    private boolean hasFreshCellSighting(Cell cell) {
+        return cell != null
+                && cell.hasEverBeenDetected()
+                && cell.state() != CellState.UNKNOWN
+                && cell.state() != CellState.STALE;
     }
 
     private boolean aimAtTarget(Cell cell) {
