@@ -104,12 +104,8 @@ public class CellMap {
      * scoring target. Without a sighting, use the closer nominal target.
      */
     public Cell bestOurCell(Pose robotPose) {
-        Cell downCell = mostRecentlyObservedOurCell();
-        if (downCell != null) {
-            FieldSide targetSide = downCell.fieldSide == FieldSide.AUDIENCE
-                    ? FieldSide.OPPOSITE : FieldSide.AUDIENCE;
-            return cell(ourAlliance, targetSide);
-        }
+        Cell observedCell = mostRecentlyObservedOurCell();
+        if (observedCell != null) return observedCell;
 
         Cell audience = cell(ourAlliance, FieldSide.AUDIENCE);
         Cell opposite = cell(ourAlliance, FieldSide.OPPOSITE);
