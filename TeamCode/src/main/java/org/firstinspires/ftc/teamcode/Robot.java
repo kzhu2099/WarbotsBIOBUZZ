@@ -53,6 +53,9 @@ public class Robot {
     public boolean redAlliance;
     private boolean fieldCentric = true;
     private boolean endgameAlerted = false;
+    private boolean cellAimHeld = false;
+    private double cellAimHoldX;
+    private double cellAimHoldY;
 
     private String[] startPoseOptions = new String[0];
     private int startPoseIndex = 0;
@@ -203,9 +206,24 @@ public class Robot {
         }
 
         if (gamepad1.y) {
-            aimAtOwnCell();
+            Pose pose = follower.pose();
+            if (!cellAimHeld) {
+                cellAimHoldX = pose.x();
+                cellAimHoldY = pose.y();
+                cellAimHeld = true;
+            }
+
+            Cell targetCell = cellMap.bestOurCell(pose);
+            if (targetCell != null) {
+                double heading = Math.atan2(
+                        targetCell.fieldPose().y() - pose.y(),
+                        targetCell.fieldPose().x() - pose.x()
+                );
+                follower.hold(new Pose(cellAimHoldX, cellAimHoldY, heading));
+            }
             return;
         }
+        cellAimHeld = false;
 
         if (gamepad1.left_bumper && gameVision.seesPollen()) {
             trackPollen();
