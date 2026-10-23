@@ -6,9 +6,9 @@ import com.pedropathing.math.Pose;
  * BIOBUZZ starting pose. Coordinates use Pedro's 144 by 144 inch field
  * frame, with (0, 0) at the bottom-left when viewed from the audience.
  *
- * VERIFY THESE VALUES: the loading-zone centers come from the official
- * field diagram. Robot length and the exact match-field tape placement must
- * be checked on the assembled robot and event field.
+ * VERIFY THESE VALUES: the field-side and Y position below are nominal
+ * estimates, not measured robot starting marks. Confirm the loading-zone
+ * tape, robot orientation, and bumper clearance on the official CAD/event field.
  */
 public enum StartPosition {
 
