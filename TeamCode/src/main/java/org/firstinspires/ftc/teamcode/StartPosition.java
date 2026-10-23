@@ -14,7 +14,7 @@ public enum StartPosition {
 
     LOADING_ZONE(new Pose(
             Points.FIELD_SIZE - RobotGeometry.HALF_LENGTH_INCHES,
-            36.0,
+            BioBuzzAutoConfig.LOADING_ZONE_CENTER_Y_INCHES,
             Math.PI
     ));
 
