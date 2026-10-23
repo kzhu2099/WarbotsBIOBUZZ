@@ -9,19 +9,21 @@ import org.firstinspires.ftc.teamcode.Robot;
 import org.firstinspires.ftc.teamcode.StartPosition;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-@Autonomous(name = "BIOBUZZ - Leave Wall", group = "BIOBUZZ")
+@Autonomous(name = "BIOBUZZ - Leave and Park", group = "BIOBUZZ")
 public class LeaveOnlyAuto extends OpMode {
+
+    private enum Stage { LEAVE_WALL, PARK, DONE }
 
     private Robot robot;
     private String initError;
-    private boolean pathStarted;
-    private boolean finished;
-    private double pathStartSeconds;
+    private String status = "INIT";
+    private Stage stage = Stage.LEAVE_WALL;
+    private double stageStartedAt;
 
     @Override
     public void init() {
         if (Constants.foresightConfig == null) {
-            initError = "ForesightConfig is null. Tune Foresight and copy its generated config into Constants.java.";
+            initError = "ForesightConfig is missing. Run the Pedro tuners before using this auto.";
             return;
         }
 
@@ -40,12 +42,13 @@ public class LeaveOnlyAuto extends OpMode {
         }
 
         robot.toggleAlliance();
-        robot.setStartPose(StartPosition.LOADING_ZONE.pose(robot.redAlliance));
+        robot.setStartPose(StartPosition.SIDE_WALL.pose(robot.redAlliance));
         robot.updateWorldModel(getRuntime());
-        telemetry.addData("Status", "Ready");
+
         telemetry.addData("Alliance", robot.redAlliance ? "RED" : "BLUE");
-        telemetry.addData("Start pose", robot.follower.pose());
-        telemetry.addLine("VERIFY THESE VALUES: loading-zone position and robot size.");
+        telemetry.addData("Start", robot.follower.pose());
+        telemetry.addData("Park target", BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+        telemetry.addLine("VERIFY THESE VALUES: wall start, robot dimensions and Loading Zone target.");
         telemetry.update();
     }
 
@@ -53,16 +56,12 @@ public class LeaveOnlyAuto extends OpMode {
     public void start() {
         if (robot == null) return;
 
-        Pose start = StartPosition.LOADING_ZONE.pose(robot.redAlliance);
-        robot.setStartPose(start);
-        Pose leave = new Pose(
-                start.x() + Math.cos(start.heading()) * BioBuzzAutoConfig.LEAVE_DISTANCE_INCHES,
-                start.y() + Math.sin(start.heading()) * BioBuzzAutoConfig.LEAVE_DISTANCE_INCHES,
-                start.heading()
-        );
-        robot.followTo(leave);
-        pathStarted = true;
-        pathStartSeconds = getRuntime();
+        double now = getRuntime();
+        robot.setStartPose(StartPosition.SIDE_WALL.pose(robot.redAlliance));
+        robot.followTo(BioBuzzAutoConfig.leavePose(robot.follower.pose()));
+        stage = Stage.LEAVE_WALL;
+        stageStartedAt = now;
+        status = "Moving clear of the perimeter";
     }
 
     @Override
@@ -72,17 +71,33 @@ public class LeaveOnlyAuto extends OpMode {
             return;
         }
 
-        robot.updateWorldModel(getRuntime());
-        if (pathStarted && !finished
-                && (!robot.busy() || getRuntime() - pathStartSeconds > 4.0)) {
+        double now = getRuntime();
+        robot.updateWorldModel(now);
+
+        if (stage == Stage.LEAVE_WALL && (!robot.busy() || now - stageStartedAt >= 4.0)) {
+            beginParking(now);
+        } else if (stage == Stage.PARK
+                && (!robot.busy() || now - stageStartedAt >= BioBuzzAutoConfig.PARK_TIMEOUT_SECONDS)) {
             robot.follower.stop();
-            finished = true;
+            stage = Stage.DONE;
+            status = robot.busy() ? "Park path timed out; stopped" : "Park path ended";
         }
 
-        telemetry.addData("Auto", "Leave Wall");
-        telemetry.addData("Status", finished ? "DONE" : "Driving clear of wall");
+        telemetry.addData("Auto", "Leave and Park");
+        telemetry.addData("Stage", stage);
+        telemetry.addData("Status", status);
         telemetry.addData("Pose", robot.follower.pose());
+        telemetry.addData("Park target", BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+        telemetry.addLine("Check the final pose on the field before relying on the park points.");
         telemetry.update();
+    }
+
+    private void beginParking(double now) {
+        robot.follower.stop();
+        robot.followTo(BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+        stage = Stage.PARK;
+        stageStartedAt = now;
+        status = "Driving into the alliance Loading Zone";
     }
 
     @Override
