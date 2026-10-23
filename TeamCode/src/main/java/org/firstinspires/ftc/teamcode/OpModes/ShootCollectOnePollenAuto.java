@@ -159,6 +159,10 @@ public class ShootCollectOnePollenAuto extends OpMode {
                         enter(Stage.FEED_PRELOAD_AND_DRIVE, now, "Repositioning for the current Cell");
                         break;
                     }
+                    if (!hasFreshCellSighting(targetCell)) {
+                        abort("Cell tag became stale before the preload shot.");
+                        break;
+                    }
                     if (aimAtTarget(targetCell)) {
                         if (robot.mechanism.triggerOuttake(now)) {
                             enter(Stage.SHOOT_PRELOAD, now, "Shooting one preloaded Pollen");
@@ -209,7 +213,7 @@ public class ShootCollectOnePollenAuto extends OpMode {
                         abort("Return to Cell timed out.");
                     } else if (!robot.busy()) {
                         Cell liveCell = robot.cellMap.bestOurCell(robot.follower.pose());
-                        if (liveCell == null || !liveCell.hasEverBeenDetected()) {
+                        if (!hasFreshCellSighting(liveCell)) {
                             abort("No alliance Cell tag sighting on return; refusing to shoot at an estimated target.");
                             break;
                         }
@@ -241,6 +245,10 @@ public class ShootCollectOnePollenAuto extends OpMode {
                         retargets++;
                         followToCellApproach(now);
                         enter(Stage.DRIVE_TO_CELL, now, "Repositioning for the current Cell");
+                        break;
+                    }
+                    if (!hasFreshCellSighting(targetCell)) {
+                        abort("Cell tag became stale before the collected-Pollen shot.");
                         break;
                     }
                     if (aimAtTarget(targetCell)) {
