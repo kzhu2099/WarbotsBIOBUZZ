@@ -46,6 +46,7 @@ public class CellMap {
     //      usually enough; it doesn't need its own separate tuning pass.
     // Until that tuning happens, these are placeholder guesses - not
     // wrong exactly, just unverified.
+    // VERIFY THESE VALUES with repeated shots; they are robot-specific.
     private static final double APPROACH_STANDOFF_INCHES = 24.0;
     private static final double SCORING_STANDOFF_INCHES = 16.0;
 
@@ -98,18 +99,34 @@ public class CellMap {
     }
 
     /**
-     * Which of our two same-alliance cells is actually the better target
-     * right now, given where the robot currently is. This is a live
-     * decision, not a fixed flag - a more confidently-tracked cell always
-     * beats a less-confident one regardless of distance, and among
-     * equally-trusted cells the closer one wins. Never returns null: with
-     * both cells always present (even at CellState.UNKNOWN, using their
-     * placeholder nominal pose), there is always a "current best guess."
+     * The tags are on the underside of the downward-facing Cell. When we
+     * have seen one of our alliance's tag clusters, its paired Cell is the
+     * scoring target. Without a sighting, use the closer nominal target.
      */
     public Cell bestOurCell(Pose robotPose) {
+        Cell downCell = mostRecentlyObservedOurCell();
+        if (downCell != null) {
+            FieldSide targetSide = downCell.fieldSide == FieldSide.AUDIENCE
+                    ? FieldSide.OPPOSITE : FieldSide.AUDIENCE;
+            return cell(ourAlliance, targetSide);
+        }
+
         Cell audience = cell(ourAlliance, FieldSide.AUDIENCE);
         Cell opposite = cell(ourAlliance, FieldSide.OPPOSITE);
         return scoreOf(audience, robotPose) >= scoreOf(opposite, robotPose) ? audience : opposite;
+    }
+
+    private Cell mostRecentlyObservedOurCell() {
+        Cell audience = cell(ourAlliance, FieldSide.AUDIENCE);
+        Cell opposite = cell(ourAlliance, FieldSide.OPPOSITE);
+        boolean audienceSeen = audience.hasEverBeenDetected();
+        boolean oppositeSeen = opposite.hasEverBeenDetected();
+
+        if (!audienceSeen && !oppositeSeen) return null;
+        if (!oppositeSeen) return audience;
+        if (!audienceSeen) return opposite;
+        return audience.lastDetectedAtSeconds() >= opposite.lastDetectedAtSeconds()
+                ? audience : opposite;
     }
 
     private static double scoreOf(Cell cell, Pose robotPose) {
@@ -139,6 +156,15 @@ public class CellMap {
      * freshly (re)detected - is what should actually trigger a replan.
      */
     public boolean shouldReconsiderCell(Cell committed) {
+        if (committed == null) return true;
+
+        Cell downCell = mostRecentlyObservedOurCell();
+        if (downCell != null) {
+            FieldSide targetSide = downCell.fieldSide == FieldSide.AUDIENCE
+                    ? FieldSide.OPPOSITE : FieldSide.AUDIENCE;
+            return cell(ourAlliance, targetSide) != committed;
+        }
+
         Cell other = otherCellFor(committed);
         return other != null && trustRank(other.state()) > trustRank(committed.state());
     }
