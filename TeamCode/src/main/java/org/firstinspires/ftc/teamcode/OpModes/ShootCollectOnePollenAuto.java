@@ -79,6 +79,12 @@ public class ShootCollectOnePollenAuto extends OpMode {
         if (robot == null) return;
 
         matchStartSeconds = getRuntime();
+        if (!robot.cellVision.isAvailable()) {
+            stage = Stage.ABORTED;
+            status = "Cell camera unavailable; unable to confirm the upward-facing scoring Cell.";
+            return;
+        }
+
         Pose start = StartPosition.LOADING_ZONE.pose(robot.redAlliance);
         robot.setStartPose(start);
         robot.updateWorldModel(matchStartSeconds);
@@ -117,6 +123,10 @@ public class ShootCollectOnePollenAuto extends OpMode {
                     }
                     if (!robot.busy() && robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
                         Cell liveCell = robot.cellMap.bestOurCell(robot.follower.pose());
+                        if (liveCell == null || !liveCell.hasEverBeenDetected()) {
+                            abort("No alliance Cell tag sighting; refusing to shoot at an estimated target.");
+                            break;
+                        }
                         if (liveCell != driveCell) {
                             if (retargets >= 2) {
                                 abort("Active Cell changed repeatedly; stopping instead of shooting from an unverified position.");
@@ -198,6 +208,10 @@ public class ShootCollectOnePollenAuto extends OpMode {
                         abort("Return to Cell timed out.");
                     } else if (!robot.busy()) {
                         Cell liveCell = robot.cellMap.bestOurCell(robot.follower.pose());
+                        if (liveCell == null || !liveCell.hasEverBeenDetected()) {
+                            abort("No alliance Cell tag sighting on return; refusing to shoot at an estimated target.");
+                            break;
+                        }
                         if (liveCell != driveCell) {
                             if (retargets >= 2) {
                                 abort("Active Cell changed repeatedly; stopping instead of shooting from an unverified position.");
