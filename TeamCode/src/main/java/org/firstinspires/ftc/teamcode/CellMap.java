@@ -99,9 +99,9 @@ public class CellMap {
     }
 
     /**
-     * The tags are on the underside of the downward-facing Cell. When we
-     * have seen one of our alliance's tag clusters, its paired Cell is the
-     * scoring target. Without a sighting, use the closer nominal target.
+     * The tag cluster is on the bottom face of each Cell, facing the tiles.
+     * From below the Hive, it identifies the Cell whose opening faces up.
+     * If neither alliance Cell has been seen, use the closer nominal pose.
      */
     public Cell bestOurCell(Pose robotPose) {
         Cell observedCell = mostRecentlyObservedOurCell();
@@ -148,8 +148,9 @@ public class CellMap {
      * replanning every time the robot's position nudges the distance
      * comparison one way or the other while driving around - that would
      * thrash between the two cells for no real reason. A meaningful
-     * change - the committed cell going stale, or the other one being
-     * freshly (re)detected - is what should actually trigger a replan.
+     * change - a fresh tag sighting identifies the other Cell as active -
+     * is what should trigger a replan. A stale target is unsafe to score on
+     * and must be handled by the controller rather than by guessing a side.
      */
     public boolean shouldReconsiderCell(Cell committed) {
         if (committed == null) return true;
