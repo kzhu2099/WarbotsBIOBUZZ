@@ -30,12 +30,17 @@ public enum StartPosition {
         double heading = bluePose.heading() + Math.PI;
         return new Pose(
                 Points.FIELD_SIZE - bluePose.x(),
-                Points.FIELD_SIZE - bluePose.y(),
+                bluePose.y(),
                 Math.atan2(Math.sin(heading), Math.cos(heading))
         );
     }
 
     public Pose fallbackParkPose(boolean redAlliance) {
-        return pose(redAlliance);
+        Pose start = pose(redAlliance);
+        return new Pose(
+                start.x() + Math.cos(start.heading()) * 24.0,
+                start.y() + Math.sin(start.heading()) * 24.0,
+                start.heading()
+        );
     }
 }
