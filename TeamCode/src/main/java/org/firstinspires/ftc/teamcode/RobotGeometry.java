@@ -69,8 +69,13 @@ public final class RobotGeometry {
         return Math.max(HALF_WIDTH_INCHES, HALF_LENGTH_INCHES) + MIN_OBSTACLE_CLEARANCE_INCHES;
     }
 
-    /** Standard game ball diameter (Pollen/Nectar), for reference. Inches. */
-    public static final double BALL_DIAMETER_INCHES = 3.0;
+    /** Official BIOBUZZ nominal scoring-element diameters. VERIFY physical variation. */
+    public static final double POLLEN_DIAMETER_INCHES = 2.8;
+    public static final double NECTAR_DIAMETER_INCHES = 3.6;
+
+    /** Legacy alias; use the pollen/nectar-specific constants for new code. */
+    @Deprecated
+    public static final double BALL_DIAMETER_INCHES = POLLEN_DIAMETER_INCHES;
 
     // ---- Cell camera mounting (upward-facing AprilTag camera) -----------
     //
