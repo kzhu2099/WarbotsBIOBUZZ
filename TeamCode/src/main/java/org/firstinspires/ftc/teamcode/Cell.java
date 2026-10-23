@@ -127,6 +127,10 @@ public class Cell {
         return lastDetectedAtSeconds;
     }
 
+    void setInferredFieldPose(Pose inferredFieldPose) {
+        this.fieldPose = inferredFieldPose;
+    }
+
     /** True once we have ever actually seen one of this cell's tags this match. */
     public boolean hasEverBeenDetected() {
         return state != CellState.UNKNOWN;
@@ -154,6 +158,33 @@ public class Cell {
         Pose scoringPose = new Pose(scoreX, scoreY, aimHeading);
 
         return new CellTarget(this, approachPose, scoringPose, aimHeading);
+    }
+
+    public CellTarget computeTarget(Pose robotPose) {
+        double dx = robotPose.x() - fieldPose.x();
+        double dy = robotPose.y() - fieldPose.y();
+        double distance = Math.hypot(dx, dy);
+
+        if (distance < 1e-6) {
+            dx = Math.cos(fieldPose.heading());
+            dy = Math.sin(fieldPose.heading());
+            distance = 1.0;
+        }
+
+        double ux = dx / distance;
+        double uy = dy / distance;
+        double approachX = fieldPose.x() + ux * approachStandoffInches;
+        double approachY = fieldPose.y() + uy * approachStandoffInches;
+        double scoringX = fieldPose.x() + ux * scoringStandoffInches;
+        double scoringY = fieldPose.y() + uy * scoringStandoffInches;
+        double aimHeading = Math.atan2(fieldPose.y() - approachY, fieldPose.x() - approachX);
+
+        return new CellTarget(
+                this,
+                new Pose(approachX, approachY, aimHeading),
+                new Pose(scoringX, scoringY, aimHeading),
+                aimHeading
+        );
     }
 
     @Override
