@@ -348,6 +348,9 @@ public class Robot {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
+        Cell scoringTarget = cellMap.bestOurCell(follower.pose());
+        telemetry.addData("aim button", "Hold gamepad1 Y to aim at the upward-facing alliance Cell");
+        telemetry.addData("score target (Y)", scoringTarget == null ? "none" : scoringTarget.toString());
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
         if (selectedStartPose() != null) {
