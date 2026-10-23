@@ -258,14 +258,13 @@ public class Robot {
         aimAt(target.x(), target.y());
     }
 
-    /** Aims using the real, computed cell target - not a Points lookup and
-     *  not a hardcoded turnTo(). See Cell.computeTarget(). */
-    public void aimAtOwnCell() {
-        Cell cell = cellMap.bestOurCell(follower.pose());
+    public void aimAtCell(Cell cell) {
         if (cell == null) return;
-        CellTarget target = cell.computeTarget();
-        Pose pose = follower.pose();
-        follower.hold(new Pose(pose.x(), pose.y(), target.aimHeadingRadians));
+        aimAt(cell.fieldPose().x(), cell.fieldPose().y());
+    }
+
+    public void aimAtOwnCell() {
+        aimAtCell(cellMap.bestOurCell(follower.pose()));
     }
 
     public Path pathTo(Pose target) {
@@ -348,9 +347,9 @@ public class Robot {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
-        Cell scoringTarget = cellMap.bestOurCell(follower.pose());
-        telemetry.addData("aim button", "Hold gamepad1 Y to aim at the upward-facing alliance Cell");
-        telemetry.addData("score target (Y)", scoringTarget == null ? "none" : scoringTarget.toString());
+        Cell targetCell = cellMap.bestOurCell(follower.pose());
+        telemetry.addData("aim (hold Y)", targetCell == null ? "no cell" :
+                targetCell.alliance + " " + targetCell.fieldSide + " " + targetCell.state());
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
         if (selectedStartPose() != null) {
