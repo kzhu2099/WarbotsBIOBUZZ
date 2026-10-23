@@ -282,7 +282,7 @@ public class AutonomousController {
             beginPark(world, now);
             return;
         }
-        currentCellTarget = cell.computeTarget();
+        currentCellTarget = cell.computeTarget(world.robotPose());
         robot.follower.follow(robot.pathTo(currentCellTarget.approachPose));
         enter(AutoState.DRIVE_TO_CELL, now);
     }
