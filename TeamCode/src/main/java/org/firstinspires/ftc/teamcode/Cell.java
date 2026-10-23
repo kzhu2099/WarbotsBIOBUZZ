@@ -123,6 +123,10 @@ public class Cell {
         return confidence;
     }
 
+    public double lastDetectedAtSeconds() {
+        return lastDetectedAtSeconds;
+    }
+
     /** True once we have ever actually seen one of this cell's tags this match. */
     public boolean hasEverBeenDetected() {
         return state != CellState.UNKNOWN;
