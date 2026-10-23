@@ -214,13 +214,16 @@ public class Robot {
             }
 
             Cell targetCell = cellMap.bestOurCell(pose);
-            if (targetCell != null) {
-                double heading = Math.atan2(
+            double heading = pose.heading();
+            if (targetCell != null
+                    && targetCell.state() != CellState.UNKNOWN
+                    && targetCell.state() != CellState.STALE) {
+                heading = Math.atan2(
                         targetCell.fieldPose().y() - pose.y(),
                         targetCell.fieldPose().x() - pose.x()
                 );
-                follower.hold(new Pose(cellAimHoldX, cellAimHoldY, heading));
             }
+            follower.hold(new Pose(cellAimHoldX, cellAimHoldY, heading));
             return;
         }
         cellAimHeld = false;
