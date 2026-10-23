@@ -44,12 +44,11 @@ import java.util.Map;
  * through Localization automatically. Until then, NAVIGATION_TAG is wired
  * up and ready, but empty.
  *
- * TODO: VERIFY the exact field pose (position + mounting height/angle) of
- * each tag against the official BIOBUZZ field/tag appendix and the actual
- * printed tags at your events - the IDs/groupings above are confirmed, but
- * exact coordinates below are still a placeholder layout on a generic
- * 144in x 144in field (audience along the y=0 wall, red alliance nearer
- * x=0, blue alliance nearer x=144 - adjust to match the real field).
+ * The AprilTag ID groupings below follow the official BIOBUZZ manual.
+ * The nominal poses are approximate seeds for cases where no tag is visible;
+ * the actual tracked positions come from camera detections. VERIFY THESE
+ * VALUES and the camera's position/orientation against the field CAD and
+ * the physical robot before relying on fallback aiming.
  */
 public final class FieldTagLibrary {
 
@@ -71,14 +70,31 @@ public final class FieldTagLibrary {
 
     private static final Map<Integer, Entry> TAGS = new HashMap<>();
 
-    // Placeholder cell centers/headings - TODO: VERIFY against the real
-    // field. Heading = the outward direction a scored ball travels (see
-    // Cell's Javadoc), which for a wall-mounted cell is "away from that
-    // wall, into the field."
-    private static final Pose RED_AUDIENCE_POSE = new Pose(36, 6, Math.toRadians(90));
-    private static final Pose RED_OPPOSITE_POSE = new Pose(36, 138, Math.toRadians(-90));
-    private static final Pose BLUE_AUDIENCE_POSE = new Pose(108, 6, Math.toRadians(90));
-    private static final Pose BLUE_OPPOSITE_POSE = new Pose(108, 138, Math.toRadians(-90));
+    // The official manual places both Hives at field center and gives an
+    // 18.8-inch spacing between a Hive's two Cells. The x offset below is an
+    // estimate from the official layout, not a published cell-center value.
+    // VERIFY THESE VALUES against the official field CAD, the tag reference
+    // holes, and an actual field before relying on tag-free fallback aiming.
+    private static final double FIELD_CENTER = Points.FIELD_SIZE / 2.0;
+    private static final double HIVE_X_OFFSET_INCHES = 12.0;
+    private static final double CELL_HALF_SEPARATION_INCHES = 18.8 / 2.0;
+
+    private static final Pose RED_AUDIENCE_POSE = new Pose(
+            FIELD_CENTER - HIVE_X_OFFSET_INCHES,
+            FIELD_CENTER - CELL_HALF_SEPARATION_INCHES,
+            Math.toRadians(90));
+    private static final Pose RED_OPPOSITE_POSE = new Pose(
+            FIELD_CENTER - HIVE_X_OFFSET_INCHES,
+            FIELD_CENTER + CELL_HALF_SEPARATION_INCHES,
+            Math.toRadians(-90));
+    private static final Pose BLUE_AUDIENCE_POSE = new Pose(
+            FIELD_CENTER + HIVE_X_OFFSET_INCHES,
+            FIELD_CENTER - CELL_HALF_SEPARATION_INCHES,
+            Math.toRadians(90));
+    private static final Pose BLUE_OPPOSITE_POSE = new Pose(
+            FIELD_CENTER + HIVE_X_OFFSET_INCHES,
+            FIELD_CENTER + CELL_HALF_SEPARATION_INCHES,
+            Math.toRadians(-90));
 
     static {
         registerGroup(new int[]{30, 31, 32, 33}, Alliance.RED, FieldSide.OPPOSITE, RED_OPPOSITE_POSE);
