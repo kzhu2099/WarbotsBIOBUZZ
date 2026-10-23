@@ -188,7 +188,23 @@ public class CellMap {
         if (alliance == null || fieldSide == null) return;
 
         Pose observedFieldPose = observation.estimateFieldPose(robotFieldPose);
-        cell(alliance, fieldSide).updateFromSighting(observedFieldPose, observation.confidence, nowSeconds);
+        Cell downCell = cell(alliance, fieldSide);
+        downCell.updateFromSighting(observedFieldPose, observation.confidence, nowSeconds);
+
+        FieldSide upSide = fieldSide == FieldSide.AUDIENCE
+                ? FieldSide.OPPOSITE : FieldSide.AUDIENCE;
+        Cell upCell = cell(alliance, upSide);
+
+        // The official manual places the two Cells 18.8 inches apart.
+        // VERIFY THESE VALUES against the real field CAD: the detected tag
+        // center is not guaranteed to coincide exactly with the Cell center.
+        double dy = fieldSide == FieldSide.AUDIENCE ? 18.8 : -18.8;
+        Pose nominalUp = FieldTagLibrary.nominalPoseFor(alliance, upSide);
+        upCell.setInferredFieldPose(new Pose(
+                observedFieldPose.x(),
+                observedFieldPose.y() + dy,
+                nominalUp.heading()
+        ));
     }
 
     /** Ages all four cells' DETECTED/CONFIRMED/STALE state. Call once per
