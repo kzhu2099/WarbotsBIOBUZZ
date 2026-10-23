@@ -19,7 +19,7 @@ The loading-zone seed places Blue near the right alliance wall at heading 180 de
 
 Gamepad 1 **Y** is the hold-to-aim control in TeleOp. While Y is held, joystick translation is suppressed and the robot rotates toward the currently selected upward-facing Cell for its alliance.
 
-The official manual places the AprilTag cluster underneath the downward-facing Cell. CellMap therefore treats the latest observed alliance Cell as the downward-facing half and selects its paired Cell as the scoring target. If no alliance Cell tag has been observed, the code uses nominal coordinates and picks the nearer estimate. Telemetry displays the selected Cell and tracking state.
+The official manual places each AprilTag cluster on the Cell's bottom face, pointing down toward the tiles. From a camera below the Hive, that tag identifies the Cell whose opening is facing upward, so CellMap targets the observed Cell directly. If no alliance-cell tag has been observed, the code uses nominal coordinates and picks the nearer estimate; that fallback cannot confirm the Hive's current tipped state. Telemetry displays the selected Cell and tracking state.
 
 The official separation between the two Cells in a Hive is 18.8 inches. The nominal positions in FieldTagLibrary are estimates rather than published exact Cell-center coordinates. The offset between a tag cluster and the Cell center must be confirmed using field CAD and physical observations.
 
