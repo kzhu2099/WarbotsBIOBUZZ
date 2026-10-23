@@ -6,21 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * All of the actual decision-making for autonomous: which balls are worth
- * collecting, in what order, while steering clear of opponent balls, and
- * whether the currently-executing plan is still valid. This class has NO
- * hardware or FTC SDK dependency - it only touches {@link WorldState} and
- * the plain data model (Ball/Cell/Inventory/Pose), specifically so it can
- * be unit-tested with simulated world state (project brief section 34)
- * without needing a robot, a camera, or even the FTC SDK.
- *
- * "Target selection" and "route planning" are not two independently
- * hardcoded balls-picked-one-at-a-time steps - see planRoute(): it
- * evaluates whole candidate SEQUENCES (up to remaining capacity) and picks
- * the best one, per project brief section 17 ("optimize a sequence of
- * targets, not independently choose the nearest ball every time").
- */
+/** Chooses collection routes and identifies when the current route needs replanning. */
 public class AutonomousPlanner {
 
     // ---- Tunable weights (all TODO: VERIFY/tune against real matches) ---
@@ -71,7 +57,7 @@ public class AutonomousPlanner {
         if (candidates.isEmpty()) return Route.EMPTY;
 
         Cell cell = resolveScoringCell(world);
-        Pose cellAnchor = cell != null ? cell.computeTarget().approachPose : world.robotPose();
+        Pose cellAnchor = cell != null ? cell.computeTarget(world.robotPose()).approachPose : world.robotPose();
         List<Ball> opponents = world.ballMap.opponentBalls();
 
         int maxLength = Math.min(capacity, candidates.size());
