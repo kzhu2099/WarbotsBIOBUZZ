@@ -14,25 +14,7 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
-/**
- * Everything about the physical robot, and - critically - the whole
- * "sensing" side of the closed loop this project is built around:
- *
- *   cameras observe -> world model updates -> planner decides ->
- *   PedroPathing executes -> mechanisms change the world -> sensors
- *   observe again -> planner updates the route
- *
- * Robot owns "cameras observe -> world model updates" AND "mechanisms
- * change the world -> sensors observe again" (both halves happen inside
- * {@link #updateWorldModel}, which both AutonomousController and TeleOp
- * call once per loop). {@link AutonomousController} owns the "planner
- * decides -> PedroPathing executes" half. Localization, BallMap, CellMap,
- * and Inventory are each created exactly ONCE, here, and handed out by
- * reference (through {@link #worldState}) - nothing else in the project
- * keeps its own copy of any of them, which is what actually closes the
- * loop instead of leaving three components with three slightly different
- * ideas of reality.
- */
+/** Shared access to the drivetrain, localization, vision, Cell/ball tracking, inventory, and mechanisms. */
 public class Robot {
 
     public final Follower follower;
@@ -53,18 +35,15 @@ public class Robot {
     public boolean redAlliance;
     private boolean fieldCentric = true;
     private boolean endgameAlerted = false;
+    private boolean cellAimHeld = false;
+    private double cellAimHoldX;
+    private double cellAimHoldY;
+    private boolean cellAimFallbackActive;
 
     private String[] startPoseOptions = new String[0];
     private int startPoseIndex = 0;
 
-    /** The most recent "now" passed to updateWorldModel() - the single
-     *  clock every subsystem's timing (mechanism timeouts included) is
-     *  measured against. Step helpers below read this instead of taking
-     *  their own timestamp parameter, specifically so a Step's start()
-     *  (which can run an arbitrary number of loop ticks after the Step
-     *  object was constructed) always uses the SAME clock as
-     *  updateWorldModel/ScoringMechanism - mixing clocks here previously
-     *  would have made every mechanism timeout meaningless. */
+    /** Clock shared by mechanism timers and the OpMode loop. */
     private double lastKnownNowSeconds = 0;
 
     public Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gamepad1, Gamepad gamepad2, boolean redAlliance) {
@@ -75,12 +54,7 @@ public class Robot {
 
         follower = Constants.create(hardwareMap);
         localization = new Localization(follower);
-        // Every fresh Robot starts by wanting a resync: right after
-        // init/reset is exactly when odometry is most likely to be wrong
-        // (never zeroed, or zeroed at the wrong spot) and a trusted tag
-        // sighting should fully win rather than be ignored or lightly
-        // blended in - see Localization's Javadoc for why that's the
-        // default behavior rather than continuous correction.
+        // After a reset, use the next trusted navigation tag to correct the pose if one is available.
         localization.requestResync();
 
         gameVision = new GameVision(hardwareMap);
@@ -148,11 +122,7 @@ public class Robot {
         }
 
         mechanism.update(nowSeconds);
-        // "mechanisms change the world -> sensors observe again -> the
-        // world model reflects it": inventory only ever changes here,
-        // from a mechanism event that was actually verified (or, lacking
-        // a sensor, explicitly and visibly assumed - see ScoringMechanism)
-        // - never from an assumption made anywhere else in the project.
+        // Inventory follows the mechanism state machine. Transfers are timed, not sensor-confirmed.
         if (mechanism.justReachedReadyToScore()) {
             inventory.acquire(mechanism.lastTransferredType());
         }
@@ -203,9 +173,35 @@ public class Robot {
         }
 
         if (gamepad1.y) {
-            aimAtOwnCell();
+            Pose pose = follower.pose();
+            if (!cellAimHeld) {
+                cellAimHoldX = pose.x();
+                cellAimHoldY = pose.y();
+                cellAimHeld = true;
+            }
+
+            Cell targetCell = cellMap.bestOurCell(pose);
+            double targetX;
+            double targetY;
+            cellAimFallbackActive = targetCell == null
+                    || targetCell.state() == CellState.UNKNOWN
+                    || targetCell.state() == CellState.STALE;
+
+            if (cellAimFallbackActive) {
+                java.util.List<Cell> cells = cellMap.ourCells();
+                targetX = (cells.get(0).fieldPose().x() + cells.get(1).fieldPose().x()) / 2.0;
+                targetY = (cells.get(0).fieldPose().y() + cells.get(1).fieldPose().y()) / 2.0;
+            } else {
+                targetX = targetCell.fieldPose().x();
+                targetY = targetCell.fieldPose().y();
+            }
+
+            double heading = Math.atan2(targetY - pose.y(), targetX - pose.x());
+            follower.hold(new Pose(cellAimHoldX, cellAimHoldY, heading));
             return;
         }
+        cellAimHeld = false;
+        cellAimFallbackActive = false;
 
         if (gamepad1.left_bumper && gameVision.seesPollen()) {
             trackPollen();
@@ -223,15 +219,7 @@ public class Robot {
             powers = ManualDrive.fieldCentric(powers, follower.pose().heading(), allianceOffset);
         }
 
-        // driveOrHold (PedroPathing v3.0.1+) actively holds position when
-        // the driver lets go of the sticks and the robot has settled,
-        // instead of just cutting power and coasting/being pushable. Safe
-        // here specifically because this Robot's Follower is built with a
-        // real, tuned Algorithm (see pedro.Constants.create()) - hold()
-        // routes through algorithm.calculateHold() internally, which is
-        // exactly why DriveOnlyTeleOp/OdometryTeleOp (built with a null
-        // Algorithm before Foresight is tuned) must NOT use this and stick
-        // to plain follower.manual() instead.
+        // driveOrHold needs the tuned Foresight controller; diagnostic OpModes use manual().
         ManualDrive.driveOrHold(follower, powers);
     }
 
@@ -258,14 +246,13 @@ public class Robot {
         aimAt(target.x(), target.y());
     }
 
-    /** Aims using the real, computed cell target - not a Points lookup and
-     *  not a hardcoded turnTo(). See Cell.computeTarget(). */
-    public void aimAtOwnCell() {
-        Cell cell = cellMap.bestOurCell(follower.pose());
+    public void aimAtCell(Cell cell) {
         if (cell == null) return;
-        CellTarget target = cell.computeTarget();
-        Pose pose = follower.pose();
-        follower.hold(new Pose(pose.x(), pose.y(), target.aimHeadingRadians));
+        aimAt(cell.fieldPose().x(), cell.fieldPose().y());
+    }
+
+    public void aimAtOwnCell() {
+        aimAtCell(cellMap.bestOurCell(follower.pose()));
     }
 
     public Path pathTo(Pose target) {
@@ -348,6 +335,14 @@ public class Robot {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
+        Cell targetCell = cellMap.bestOurCell(follower.pose());
+        telemetry.addData("aim (hold Y)", targetCell == null ? "no Cell" :
+                targetCell.alliance + " " + targetCell.fieldSide + " " + targetCell.state());
+        boolean targetUntracked = targetCell == null
+                || targetCell.state() == CellState.UNKNOWN
+                || targetCell.state() == CellState.STALE;
+        telemetry.addData("AIM WARNING", targetUntracked
+                ? "Cell not tracked; hold Y aims between our Cell estimates" : "none");
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
         if (selectedStartPose() != null) {

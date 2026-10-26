@@ -4,130 +4,46 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 /**
- * Controls the physical intake -> transfer -> outtake mechanism.
- *
- * Physical hardware used here (confirmed, not a placeholder):
- *
- *   1x intake motor
- *   1x transfer motor
- *   1x left outtake motor
- *   1x right outtake motor
- *
- * No beam-break, color sensor, distance sensor, encoder sensor,
- * or other mechanism sensor exists on this robot.
- *
- * Cameras are handled elsewhere by the vision system.
- *
- * Both outtake motors fire simultaneously for every scoring cycle.
- *
- * This class does NOT own Inventory or BallMap.
- * It only reports when a ball has been acquired, transferred,
- * and scored so that the caller can update those systems.
- *
- * (Verified against the real ScoringState/BallType/HardwareConfig - this
- * file compiles clean; the only errors seen while checking it were the
- * expected "missing FTC SDK" ones from a sandbox without the real
- * Android/FTC jars, not real bugs in this class.)
+ * Controls intake, transfer, and the two outtake motors. There are no
+ * sensors to confirm that a game piece moved, so each state change is timed.
  */
 public class ScoringMechanism {
 
-    // ================================================================
-    // TIMING VALUES
-    // ================================================================
+    // Times are in seconds. Tune one stage at a time on the real mechanism.
+    public static double INTAKE_ACQUIRE_TIME_SECONDS = 2.5;
+    public static double TRANSFER_TIME_SECONDS = 1.5;
+    public static double OUTTAKE_DURATION_SECONDS = 1.0;
+    public static double CLEARING_DURATION_SECONDS = 0.3;
 
-    /**
-     * How long the intake runs before the code assumes that a ball
-     * has successfully entered the mechanism.
-     *
-     * Increase this if the intake needs more time to pull a ball in.
-     * Decrease this if the intake spends too long waiting before transfer.
-     *
-     * Units: seconds
-     */
-    private static final double INTAKE_ACQUIRE_TIME_SECONDS = 2.5;
+    // Powers are clamped to [-1, 1]. A negative value reverses that motor.
+    public static double INTAKE_POWER = 1.0;
+    public static double TRANSFER_POWER = 1.0;
+    public static double OUTTAKE_LEFT_POWER = 1.0;
+    public static double OUTTAKE_RIGHT_POWER = 1.0;
 
-    /**
-     * How long the transfer motor runs before the code assumes that
-     * the ball has reached the scoring position.
-     *
-     * Increase this if the ball is not consistently reaching the outtake.
-     * Decrease this if the transfer is unnecessarily slow.
-     *
-     * Units: seconds
-     */
-    private static final double TRANSFER_TIME_SECONDS = 1.5;
-
-    /**
-     * How long both outtake motors run during a scoring cycle.
-     *
-     * Increase this if the ball is not reliably expelled.
-     * Decrease this if the mechanism is unnecessarily running after
-     * the ball has already been scored.
-     *
-     * Units: seconds
-     */
-    private static final double OUTTAKE_DURATION_SECONDS = 1.0;
-
-    /**
-     * Short delay after the outtake stops before the mechanism becomes
-     * available for another cycle.
-     *
-     * Increase this if the mechanism needs additional time to clear.
-     * Decrease this if you want faster consecutive cycles.
-     *
-     * Units: seconds
-     */
-    private static final double CLEARING_DURATION_SECONDS = 0.3;
-
-
-    // ================================================================
     // MOTORS
-    // ================================================================
 
     private final DcMotorEx intakeMotor;
     private final DcMotorEx transferMotor;
     private final DcMotorEx outtakeLeftMotor;
     private final DcMotorEx outtakeRightMotor;
 
-
-    // ================================================================
     // STATE
-    // ================================================================
 
     private ScoringState state = ScoringState.INTAKE_OFF;
     private ScoringState previousState = ScoringState.INTAKE_OFF;
 
     private double stateEnteredAtSeconds = 0.0;
 
-    /**
-     * Ball type expected by the planner/camera system.
-     *
-     * This is informational for classification/inventory purposes.
-     * It does NOT determine which outtake motor fires because both
-     * outtake motors fire together.
-     */
     private BallType expectedType;
 
-    /**
-     * Type assigned to the most recently transferred ball.
-     */
     private BallType lastTransferredType;
 
-    /**
-     * True because, without physical mechanism sensors, acquisition
-     * is determined by timing rather than physically verified.
-     */
     private boolean lastAcquisitionWasAssumed = false;
 
-    /**
-     * Manual TeleOp override.
-     */
     private boolean manualOverrideActive = false;
 
-
-    // ================================================================
     // CONSTRUCTOR
-    // ================================================================
 
     public ScoringMechanism(HardwareMap hardwareMap) {
 
@@ -152,17 +68,15 @@ public class ScoringMechanism {
         );
     }
 
+    public boolean hasAllMotors() {
+        return intakeMotor != null
+                && transferMotor != null
+                && outtakeLeftMotor != null
+                && outtakeRightMotor != null;
+    }
 
-    // ================================================================
     // HARDWARE LOOKUP
-    // ================================================================
 
-    /**
-     * Gets a motor from the Robot Configuration.
-     *
-     * Returning null instead of crashing allows the rest of the code
-     * to remain robust if a motor has not been configured yet.
-     */
     private static DcMotorEx getMotor(
             HardwareMap hardwareMap,
             String name
@@ -174,25 +88,12 @@ public class ScoringMechanism {
         }
     }
 
-
-    // ================================================================
     // INTAKE
-    // ================================================================
 
-    /**
-     * Starts intake without specifying a ball type.
-     */
     public void startIntake(double nowSeconds) {
         startIntake(null, nowSeconds);
     }
 
-    /**
-     * Starts intake.
-     *
-     * expectedType may be supplied by the autonomous planner or
-     * vision system. It is retained for Inventory/classification
-     * purposes.
-     */
     public void startIntake(
             BallType expectedType,
             double nowSeconds
@@ -208,7 +109,7 @@ public class ScoringMechanism {
         this.expectedType = expectedType;
         this.lastAcquisitionWasAssumed = false;
 
-        setMotor(intakeMotor, 1.0);
+        setMotor(intakeMotor, INTAKE_POWER);
 
         transition(
                 ScoringState.INTAKING,
@@ -216,9 +117,6 @@ public class ScoringMechanism {
         );
     }
 
-    /**
-     * Stops an active intake.
-     */
     public void stopIntake(double nowSeconds) {
         if (state == ScoringState.INTAKING) {
 
@@ -231,22 +129,8 @@ public class ScoringMechanism {
         }
     }
 
-
-    // ================================================================
     // OUTTAKE / SCORING
-    // ================================================================
 
-    /**
-     * Starts a scoring cycle.
-     *
-     * BOTH outtake motors fire simultaneously.
-     *
-     * The BallType does not select the motor. This is intentional:
-     * left and right outtake motors are both activated to maximize
-     * scoring reliability.
-     *
-     * Returns true if the scoring cycle was successfully started.
-     */
     public boolean triggerOuttake(double nowSeconds) {
 
         if (manualOverrideActive) {
@@ -258,8 +142,8 @@ public class ScoringMechanism {
         }
 
         // Both outtake motors fire.
-        setMotor(outtakeLeftMotor, 1.0);
-        setMotor(outtakeRightMotor, 1.0);
+        setMotor(outtakeLeftMotor, OUTTAKE_LEFT_POWER);
+        setMotor(outtakeRightMotor, OUTTAKE_RIGHT_POWER);
 
         transition(
                 ScoringState.OUTTAKING,
@@ -269,19 +153,8 @@ public class ScoringMechanism {
         return true;
     }
 
-
-    // ================================================================
     // FAULT HANDLING
-    // ================================================================
 
-    /**
-     * Clears a fault and returns the mechanism to idle.
-     *
-     * Kept even though this sensorless build never enters FAULT on its
-     * own (see justFaulted() below) - harmless, and here so the interface
-     * stays stable if a sensor is ever added later, or if a caller wants
-     * a manual "force back to idle" recovery button.
-     */
     public void clearFault(double nowSeconds) {
 
         if (state == ScoringState.FAULT) {
@@ -295,17 +168,8 @@ public class ScoringMechanism {
         }
     }
 
-
-    // ================================================================
     // MAIN STATE-MACHINE UPDATE
-    // ================================================================
 
-    /**
-     * Call exactly once per control loop.
-     *
-     * Because the robot has no physical mechanism sensors,
-     * progression through intake and transfer is time-based.
-     */
     public void update(double nowSeconds) {
 
         previousState = state;
@@ -317,38 +181,26 @@ public class ScoringMechanism {
         double elapsed =
                 nowSeconds - stateEnteredAtSeconds;
 
-
         switch (state) {
 
-            // --------------------------------------------------------
             // IDLE
-            // --------------------------------------------------------
 
             case INTAKE_OFF:
 
                 // Waiting for startIntake().
                 break;
 
-
-            // --------------------------------------------------------
             // INTAKING
-            // --------------------------------------------------------
 
             case INTAKING:
 
-                /*
-                 * No beam-break exists.
-                 *
-                 * Therefore the code assumes the ball has entered
-                 * after the configured intake dwell time.
-                 */
                 if (elapsed >= INTAKE_ACQUIRE_TIME_SECONDS) {
 
                     lastAcquisitionWasAssumed = true;
 
                     setMotor(intakeMotor, 0);
 
-                    setMotor(transferMotor, 1.0);
+                    setMotor(transferMotor, TRANSFER_POWER);
 
                     transition(
                             ScoringState.TRANSFERRING,
@@ -358,20 +210,10 @@ public class ScoringMechanism {
 
                 break;
 
-
-            // --------------------------------------------------------
             // TRANSFERRING
-            // --------------------------------------------------------
 
             case TRANSFERRING:
 
-                /*
-                 * No distance/color sensor exists.
-                 *
-                 * Therefore the code assumes the ball has reached
-                 * the scoring position after the configured transfer
-                 * time.
-                 */
                 if (elapsed >= TRANSFER_TIME_SECONDS) {
 
                     setMotor(transferMotor, 0);
@@ -386,22 +228,13 @@ public class ScoringMechanism {
 
                 break;
 
-
-            // --------------------------------------------------------
             // READY TO SCORE
-            // --------------------------------------------------------
 
             case READY_TO_SCORE:
 
-                /*
-                 * Wait here until triggerOuttake() is called.
-                 */
                 break;
 
-
-            // --------------------------------------------------------
             // OUTTAKING
-            // --------------------------------------------------------
 
             case OUTTAKING:
 
@@ -418,10 +251,7 @@ public class ScoringMechanism {
 
                 break;
 
-
-            // --------------------------------------------------------
             // CLEARING
-            // --------------------------------------------------------
 
             case CLEARING:
 
@@ -435,36 +265,16 @@ public class ScoringMechanism {
 
                 break;
 
-
-            // --------------------------------------------------------
             // FAULT
-            // --------------------------------------------------------
 
             case FAULT:
 
-                /*
-                 * Holds until clearFault() is explicitly called.
-                 */
                 break;
         }
     }
 
-
-    // ================================================================
     // BALL CLASSIFICATION
-    // ================================================================
 
-    /**
-     * Determines the type assigned to the transferred ball.
-     *
-     * Since there is no color sensor in the robot, this cannot
-     * physically classify the ball inside the mechanism.
-     *
-     * If the planner/vision system supplied an expected type,
-     * that type is retained.
-     *
-     * Otherwise the existing default is POLLEN.
-     */
     private BallType classify() {
 
         if (expectedType != null) {
@@ -474,10 +284,7 @@ public class ScoringMechanism {
         return BallType.POLLEN;
     }
 
-
-    // ================================================================
     // STATE TRANSITION
-    // ================================================================
 
     private void transition(
             ScoringState next,
@@ -487,31 +294,19 @@ public class ScoringMechanism {
         stateEnteredAtSeconds = nowSeconds;
     }
 
-
-    // ================================================================
     // MOTOR CONTROL
-    // ================================================================
 
     private void setMotor(
             DcMotorEx motor,
             double power
     ) {
         if (motor != null) {
-            motor.setPower(power);
+            motor.setPower(Math.max(-1.0, Math.min(1.0, power)));
         }
     }
 
-
-    // ================================================================
     // MANUAL TELEOP OVERRIDE
-    // ================================================================
 
-    /**
-     * Enables or disables manual control. Only reacts on the actual
-     * on/off edge - calling this every loop tick with the same value it
-     * already has is a safe no-op, so it will not repeatedly force the
-     * mechanism back to INTAKE_OFF while automatic operation is running.
-     */
     public void setManualOverride(
             boolean active,
             double nowSeconds
@@ -536,10 +331,6 @@ public class ScoringMechanism {
         }
     }
 
-
-    /**
-     * Manually controls the intake motor.
-     */
     public void manualIntake(double power) {
 
         if (manualOverrideActive) {
@@ -547,10 +338,6 @@ public class ScoringMechanism {
         }
     }
 
-
-    /**
-     * Manually controls the transfer motor.
-     */
     public void manualTransfer(double power) {
 
         if (manualOverrideActive) {
@@ -558,10 +345,6 @@ public class ScoringMechanism {
         }
     }
 
-
-    /**
-     * Manually controls BOTH outtake motors.
-     */
     public void manualOuttake(double power) {
 
         if (manualOverrideActive) {
@@ -571,97 +354,45 @@ public class ScoringMechanism {
         }
     }
 
-
-    // ================================================================
     // STATE / EVENT QUERIES
-    // ================================================================
 
-    /**
-     * Returns the current mechanism state.
-     */
     public ScoringState state() {
         return state;
     }
 
-
-    /**
-     * True for exactly one update() call when a ball reaches
-     * the scoring position.
-     *
-     * Caller can use this to update Inventory / BallMap.
-     */
     public boolean justReachedReadyToScore() {
 
         return previousState != ScoringState.READY_TO_SCORE
                 && state == ScoringState.READY_TO_SCORE;
     }
 
-
-    /**
-     * True for exactly one update() call when the complete
-     * outtake + clearing cycle has finished.
-     *
-     * Caller can use this to update Inventory.
-     */
     public boolean justCompletedScoreCycle() {
 
         return previousState == ScoringState.CLEARING
                 && state == ScoringState.INTAKE_OFF;
     }
 
-
-    /**
-     * With no intake sensor, an ordinary timed intake does not
-     * generate a genuine failure event.
-     *
-     * This method is retained so existing caller code still compiles.
-     */
     public boolean justFailedIntake() {
 
         return false;
     }
 
-
-    /**
-     * Returns true for one update() call when the mechanism
-     * enters FAULT.
-     *
-     * The current sensorless implementation does not generate
-     * an automatic transfer fault because there is no sensor
-     * capable of detecting a jam.
-     */
     public boolean justFaulted() {
 
         return previousState != ScoringState.FAULT
                 && state == ScoringState.FAULT;
     }
 
-
-    /**
-     * Returns the type assigned to the most recently transferred ball.
-     */
     public BallType lastTransferredType() {
 
         return lastTransferredType;
     }
 
-
-    /**
-     * Returns whether the most recent acquisition was assumed
-     * rather than physically sensor-confirmed.
-     *
-     * With this robot configuration, this will be true after
-     * a normal timed acquisition.
-     */
     public boolean lastAcquisitionWasAssumed() {
 
         return lastAcquisitionWasAssumed;
     }
 
-
-    /**
-     * Returns true while the mechanism is performing a cycle.
-     */
     public boolean isBusy() {
 
         return state == ScoringState.INTAKING
@@ -670,14 +401,8 @@ public class ScoringMechanism {
                 || state == ScoringState.CLEARING;
     }
 
-
-    // ================================================================
     // EMERGENCY STOP
-    // ================================================================
 
-    /**
-     * Immediately stops all four mechanism motors.
-     */
     public void stopAll() {
 
         setMotor(intakeMotor, 0);

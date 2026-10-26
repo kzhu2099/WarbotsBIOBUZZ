@@ -5,36 +5,14 @@ import com.pedropathing.utils.Angle;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
-/**
- * The real dynamic autonomous system. This is where the closed loop the
- * project is built around actually lives, once per call to update():
- *
- *   1. PERCEIVE - robot.updateWorldModel() folds in fresh camera/sensor
- *      data (cameras observe -> world model updates).
- *   2. DECIDE - runState() asks AutonomousPlanner what to do given the
- *      now-current WorldState, and checks whether anything that
- *      invalidates the current plan happened (planner makes a decision /
- *      updates the route).
- *   3. ACT - the chosen state commands the Follower and/or ScoringMechanism
- *      (PedroPathing executes; mechanisms change the world).
- *
- * Then the OpMode calls update() again next loop, step 1 happens again,
- * and it picks up whatever step 3 actually caused - including things NOT
- * going according to plan (a ball wasn't where expected, intake failed,
- * the cell tag reappeared somewhere slightly different). That is what
- * makes this "dynamic" rather than a fixed script: nothing about the
- * sequence of states below is precomputed before the match starts.
- *
- * See AutoState for why the state list here is a condensed version of the
- * project brief's suggested state list, and why that's a deliberate,
- * documented decision rather than a missed requirement.
- */
+import java.util.List;
+
+/** Controls autonomous state transitions using the latest pose, Cell tags, and mechanism state. */
 public class AutonomousController {
 
     private static final double AUTONOMOUS_PERIOD_SECONDS = 30.0;
 
-    // TODO: TUNE every constant below against real testing - these are
-    // starting placeholders, not measured values.
+    // Tune these after testing on the actual robot and field.
     private static final double SCAN_DURATION_SECONDS = 0.75;
     private static final double ESTIMATED_COLLECT_SECONDS_PER_BALL = 3.0;
     private static final double ESTIMATED_SCORE_SECONDS = 4.0;
@@ -60,9 +38,14 @@ public class AutonomousController {
     private Ball currentTargetBall;
     private Cell committedCell;
     private CellTarget currentCellTarget;
+    private boolean atScoringPose;
 
     private ReplanReason lastReplanReason = ReplanReason.NONE;
     private WorldState lastWorldState;
+    private boolean parkingToZone;
+    private boolean retriedParkingRoute;
+    private List<Pose> parkingRoute = java.util.Collections.emptyList();
+    private int parkingWaypointIndex;
 
     public AutonomousController(Robot robot, StartPosition startPosition) {
         this.robot = robot;
@@ -75,8 +58,15 @@ public class AutonomousController {
             matchStartSeconds = nowSeconds;
         }
 
-        // 1. PERCEIVE.
         robot.updateWorldModel(nowSeconds);
+
+        if (nowSeconds - matchStartSeconds >= BioBuzzAutoConfig.AUTO_SAFETY_CUTOFF_SECONDS
+                && state != AutoState.FINISHED && state != AutoState.EMERGENCY_STOP) {
+            robot.follower.stop();
+            robot.mechanism.setManualOverride(true, nowSeconds);
+            enter(AutoState.FINISHED, nowSeconds);
+            return;
+        }
 
         double timeRemaining = AUTONOMOUS_PERIOD_SECONDS - (nowSeconds - matchStartSeconds);
         WorldState world = robot.worldState(timeRemaining, nowSeconds);
@@ -86,13 +76,11 @@ public class AutonomousController {
             // 2. DECIDE + 3. ACT.
             runState(world, nowSeconds);
         } catch (RuntimeException e) {
-            // Defensive net (project brief section 25): a bug in decision
-            // logic must never leave motors running uncontrolled for the
-            // rest of autonomous.
+            // Stop the drive and mechanism if a state handler fails.
             state = AutoState.EMERGENCY_STOP;
             stateEnteredAtSeconds = nowSeconds;
             robot.follower.stop();
-            robot.mechanism.stopAll();
+            robot.mechanism.setManualOverride(true, nowSeconds);
         }
     }
 
@@ -158,10 +146,7 @@ public class AutonomousController {
 
             case VERIFY_ACQUISITION: {
                 if (robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
-                    // Robot.updateWorldModel() already applied
-                    // inventory.acquire(...) the tick this became true -
-                    // here we finish the loop by updating BallMap and
-                    // deciding what's next.
+                    // Update the ball map after the mechanism finishes transfer.
                     robot.ballMap.markCollected(currentTargetBall);
                     advanceAfterAcquisition(world, now);
                 } else {
@@ -198,20 +183,69 @@ public class AutonomousController {
                     break;
                 }
 
+                Cell activeCell = planner.resolveScoringCell(world);
+                if (activeCell == null || activeCell != currentCellTarget.cell) {
+                    lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+                    enter(AutoState.PLAN, now);
+                    break;
+                }
+                if (activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                    stopForUntrustedCell(now);
+                    break;
+                }
+
                 Pose pose = world.robotPose();
                 robot.follower.hold(new Pose(pose.x(), pose.y(), currentCellTarget.aimHeadingRadians));
 
                 double headingError = Angle.error(pose.heading(), currentCellTarget.aimHeadingRadians);
                 boolean aimed = Math.abs(headingError) <= AIM_TOLERANCE_RADIANS;
                 boolean timedOut = now - stateEnteredAtSeconds >= AIM_TIMEOUT_SECONDS;
-                if (aimed || timedOut) {
+                if (aimed && !atScoringPose) {
+                    currentCellTarget = activeCell.computeTarget(world.robotPose());
+                    robot.followTo(currentCellTarget.scoringPose);
+                    atScoringPose = true;
+                    enter(AutoState.DRIVE_TO_SCORE, now);
+                } else if (aimed) {
                     enter(AutoState.SCORE, now);
+                } else if (timedOut) {
+                    stopForUntrustedCell(now);
+                }
+                break;
+            }
+
+            case DRIVE_TO_SCORE: {
+                ReplanReason reason = planner.detectReplanReason(world, null, committedCell);
+                if (reason != ReplanReason.NONE) {
+                    lastReplanReason = reason;
+                    atScoringPose = false;
+                    enter(AutoState.PLAN, now);
+                    break;
+                }
+
+                Cell activeCell = planner.resolveScoringCell(world);
+                if (activeCell == null || activeCell != committedCell
+                        || activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                    stopForUntrustedCell(now);
+                    break;
+                }
+
+                if (!robot.busy()) {
+                    enter(AutoState.AIM_AT_CELL, now);
+                } else if (now - stateEnteredAtSeconds >= CELL_DRIVE_TIMEOUT_SECONDS) {
+                    robot.follower.stop();
+                    beginPark(world, now);
                 }
                 break;
             }
 
             case SCORE: {
                 if (robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
+                    Cell activeCell = planner.resolveScoringCell(world);
+                    if (activeCell == null || activeCell != committedCell
+                            || activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                        stopForUntrustedCell(now);
+                        break;
+                    }
                     robot.mechanism.triggerOuttake(now);
                 }
                 if (robot.mechanism.justCompletedScoreCycle()) {
@@ -246,9 +280,33 @@ public class AutonomousController {
             }
 
             case PARK: {
+                double timeout = parkingToZone
+                        ? BioBuzzAutoConfig.PARK_TIMEOUT_SECONDS
+                        : BioBuzzAutoConfig.PARK_LANE_TIMEOUT_SECONDS;
+
                 if (!robot.busy()) {
-                    robot.mechanism.stopAll();
-                    enter(AutoState.FINISHED, now);
+                    if (parkingWaypointIndex < parkingRoute.size()) {
+                        robot.followTo(parkingRoute.get(parkingWaypointIndex++));
+                        enter(AutoState.PARK, now);
+                    } else if (!parkingToZone) {
+                        robot.followTo(BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+                        parkingToZone = true;
+                        enter(AutoState.PARK, now);
+                    } else {
+                        robot.mechanism.setManualOverride(true, now);
+                        enter(AutoState.FINISHED, now);
+                    }
+                } else if (now - stateEnteredAtSeconds >= timeout) {
+                    robot.follower.stop();
+                    if (!parkingToZone && !retriedParkingRoute) {
+                        retriedParkingRoute = true;
+                        parkingRoute = BioBuzzAutoConfig.parkingLaneRoute(robot.redAlliance, world.robotPose());
+                        parkingWaypointIndex = 0;
+                        startNextParkLeg(now);
+                    } else {
+                        robot.mechanism.setManualOverride(true, now);
+                        enter(AutoState.FINISHED, now);
+                    }
                 }
                 break;
             }
@@ -265,8 +323,7 @@ public class AutonomousController {
         }
     }
 
-    // ---- One-shot transition actions (each issues its command exactly
-    // once, at the moment of transition, not repeatedly every tick) -----
+    // Path and mechanism commands are issued when a state starts.
 
     private void driveToTarget(Ball ball) {
         robot.follower.follow(robot.pathTo(ball.fieldPose()));
@@ -282,7 +339,8 @@ public class AutonomousController {
             beginPark(world, now);
             return;
         }
-        currentCellTarget = cell.computeTarget();
+        currentCellTarget = cell.computeTarget(world.robotPose());
+        atScoringPose = false;
         robot.follower.follow(robot.pathTo(currentCellTarget.approachPose));
         enter(AutoState.DRIVE_TO_CELL, now);
     }
@@ -299,12 +357,25 @@ public class AutonomousController {
     }
 
     private void beginPark(WorldState world, double now) {
-        Pose parkPose = startPosition.fallbackParkPose(robot.redAlliance);
-        robot.follower.follow(robot.pathTo(parkPose));
+        robot.mechanism.setManualOverride(true, now);
+        parkingRoute = BioBuzzAutoConfig.parkingLaneRoute(robot.redAlliance, world.robotPose());
+        parkingWaypointIndex = 0;
+        parkingToZone = false;
+        retriedParkingRoute = false;
+        startNextParkLeg(now);
+    }
+
+    private void startNextParkLeg(double now) {
+        if (parkingWaypointIndex < parkingRoute.size()) {
+            robot.followTo(parkingRoute.get(parkingWaypointIndex++));
+        } else {
+            robot.followTo(BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+            parkingToZone = true;
+        }
         enter(AutoState.PARK, now);
     }
 
-    // ---- Checks ---------------------------------------------------------
+    // Replanning and time checks.
 
     private boolean checkCollectionReplan(WorldState world, double now) {
         ReplanReason reason = planner.detectReplanReason(world, currentTargetBall, committedCell);
@@ -328,7 +399,14 @@ public class AutonomousController {
                 ESTIMATED_SCORE_SECONDS, ESTIMATED_PARK_SECONDS, SAFE_RESERVE_SECONDS);
     }
 
-    // ---- Small helpers ----------------------------------------------------
+    // Shared state helpers.
+
+    private void stopForUntrustedCell(double now) {
+        lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+        robot.follower.stop();
+        robot.mechanism.setManualOverride(true, now);
+        enter(AutoState.EMERGENCY_STOP, now);
+    }
 
     private void enter(AutoState next, double now) {
         state = next;
@@ -355,7 +433,7 @@ public class AutonomousController {
         return lastWorldState;
     }
 
-    // ---- Telemetry (project brief section 33) ------------------------------
+    // Driver Station status.
 
     public void telemetry(Telemetry telemetry) {
         WorldState world = lastWorldState;

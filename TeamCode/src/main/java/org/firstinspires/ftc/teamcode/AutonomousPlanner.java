@@ -6,24 +6,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * All of the actual decision-making for autonomous: which balls are worth
- * collecting, in what order, while steering clear of opponent balls, and
- * whether the currently-executing plan is still valid. This class has NO
- * hardware or FTC SDK dependency - it only touches {@link WorldState} and
- * the plain data model (Ball/Cell/Inventory/Pose), specifically so it can
- * be unit-tested with simulated world state (project brief section 34)
- * without needing a robot, a camera, or even the FTC SDK.
- *
- * "Target selection" and "route planning" are not two independently
- * hardcoded balls-picked-one-at-a-time steps - see planRoute(): it
- * evaluates whole candidate SEQUENCES (up to remaining capacity) and picks
- * the best one, per project brief section 17 ("optimize a sequence of
- * targets, not independently choose the nearest ball every time").
- */
+/** Chooses collection routes and identifies when the current route needs replanning. */
 public class AutonomousPlanner {
 
-    // ---- Tunable weights (all TODO: VERIFY/tune against real matches) ---
+    // Tune these costs after testing on the field.
     private static final double COST_PER_INCH = 1.0;
     private static final double POLLEN_VALUE = 40.0;
     private static final double NECTAR_VALUE = 60.0;
@@ -71,7 +57,7 @@ public class AutonomousPlanner {
         if (candidates.isEmpty()) return Route.EMPTY;
 
         Cell cell = resolveScoringCell(world);
-        Pose cellAnchor = cell != null ? cell.computeTarget().approachPose : world.robotPose();
+        Pose cellAnchor = cell != null ? cell.computeTarget(world.robotPose()).approachPose : world.robotPose();
         List<Ball> opponents = world.ballMap.opponentBalls();
 
         int maxLength = Math.min(capacity, candidates.size());
@@ -177,27 +163,12 @@ public class AutonomousPlanner {
         return all;
     }
 
-    /**
-     * Which cell we should currently be scoring into. Each alliance now has
-     * two valid cells (audience-side and opposite-side) - this resolves to
-     * whichever one is currently better tracked and/or closer, via
-     * CellMap.bestOurCell(). Kept as an explicit planner responsibility
-     * (rather than the controller reaching directly into CellMap) so this
-     * decision stays in one place.
-     * TODO: VERIFY against the full official manual once available, in
-     * case scoring rules ever prefer one cell over the other for reasons
-     * beyond distance/confidence (e.g. a fill-level rule).
-     */
+    /** Selects the alliance Cell using CellMap's tracking. */
     public Cell resolveScoringCell(WorldState world) {
         return world.cellMap.bestOurCell(world.robotPose());
     }
 
-    /**
-     * Checks whether whatever AutonomousController is currently doing is
-     * still valid given the latest world state, and if not, says why (see
-     * project brief section 19 - explicit replan triggers instead of
-     * rebuilding the whole plan every loop tick).
-     */
+    /** Returns why a running route needs to be reconsidered. */
     public ReplanReason detectReplanReason(WorldState world, Ball currentTarget, Cell committedCell) {
         if (currentTarget != null) {
             if (currentTarget.state() == BallState.MISSING) return ReplanReason.TARGET_MISSING;
