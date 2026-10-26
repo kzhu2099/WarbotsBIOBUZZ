@@ -3,44 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.pedropathing.math.Pose;
 import com.pedropathing.utils.Angle;
 
-/**
- * A real model of one of the field's four CELLS - "a three-dimensional
- * structure that can hold NECTAR and POLLEN" per the official BIOBUZZ
- * glossary, and the thing this project actually scores into and reads
- * AprilTags off of. This replaces the project's earlier "Hive" model,
- * which used the wrong term for this concept - see FieldTagLibrary's
- * Javadoc for the glossary definitions and why the rename happened.
- *
- * NOT YET MODELED - THE REAL HIVE/TIPPING MECHANIC: per the glossary, a
- * HIVE is a different, more specific thing than a Cell: "a bi-stable
- * structure made up of two CELLS and a connecting assembly that rotates on
- * a pivot," and TIP/TIPPED is a real scoring criterion ("the HIVE moves
- * from one stable state to the other stable state with the
- * downwards-facing CELL becoming the upwards-facing CELL"), feeding
- * POLLINATOR ranking points. This project currently treats each of the
- * four real Cells as an independent scoring target and does not model
- * which two Cells are paired into one physical Hive, which one is
- * currently up/accessible vs. down, or a robot action to cause a tip. If
- * tipping strategy becomes relevant, that would be a new small
- * Hive-pairing concept (e.g. "Cell X and Cell Y share a pivot; exactly one
- * is currently scorable") layered on top of this class, not a rewrite of
- * it - Cell's job (identity, tag, field pose, computing a scoring target)
- * stays the same either way.
- *
- * There are four of these on the real field, not two: each alliance has
- * one on the audience side and one on the side opposite the audience (see
- * FieldTagLibrary for the confirmed tag IDs). A Cell doesn't carry a
- * static "active" flag for that reason - with two valid same-alliance
- * targets, "which one is active" is a live decision based on where the
- * robot currently is, not a fixed choice made once at init. See
- * CellMap.bestOurCell(pose) and AutonomousPlanner.resolveScoringCell().
- *
- * fieldPose's heading is defined as the cell's USABLE SCORING DIRECTION:
- * the outward direction a ball travels when scored (i.e. the direction
- * pointing away from the cell, out into the field, through its opening).
- * A robot scores by standing out along that direction and facing back the
- * other way - see computeTarget().
- */
+/** One Cell's tag identity, field pose, tracking state, and approach/scoring poses. The pose heading points outward through its opening; the robot faces back toward the Cell to score. The paired-Hive tipping state is not modeled here. */
 public class Cell {
 
     /** Below this, a sighting is treated as fresh enough to trust fully. */
@@ -123,21 +86,22 @@ public class Cell {
         return confidence;
     }
 
+    public double lastDetectedAtSeconds() {
+        return lastDetectedAtSeconds;
+    }
+
+    void setInferredFieldPose(Pose inferredFieldPose) {
+        this.fieldPose = inferredFieldPose;
+    }
+
     /** True once we have ever actually seen one of this cell's tags this match. */
     public boolean hasEverBeenDetected() {
         return state != CellState.UNKNOWN;
     }
 
     /**
-     * Computes where to drive and which way to face to score here, right
-     * now, using the current field pose estimate. Recomputed on demand -
-     * never cached/hardcoded - so it stays correct as the estimate
-     * improves or the confidence/staleness situation changes.
-     *
-     * approachStandoffInches/scoringStandoffInches (how far out from the
-     * cell's opening these two poses sit) come from the mechanism's real
-     * behavior, not a guessable geometric fact - see FieldTagLibrary/
-     * CellMap for the concrete tuning procedure.
+     * Calculates approach and scoring poses from the robot's current position.
+     * Both standoff distances are tuned for this robot in CellMap.
      */
     public CellTarget computeTarget() {
         double approachX = fieldPose.x() + Math.cos(fieldPose.heading()) * approachStandoffInches;
@@ -150,6 +114,33 @@ public class Cell {
         Pose scoringPose = new Pose(scoreX, scoreY, aimHeading);
 
         return new CellTarget(this, approachPose, scoringPose, aimHeading);
+    }
+
+    public CellTarget computeTarget(Pose robotPose) {
+        double dx = robotPose.x() - fieldPose.x();
+        double dy = robotPose.y() - fieldPose.y();
+        double distance = Math.hypot(dx, dy);
+
+        if (distance < 1e-6) {
+            dx = Math.cos(fieldPose.heading());
+            dy = Math.sin(fieldPose.heading());
+            distance = 1.0;
+        }
+
+        double ux = dx / distance;
+        double uy = dy / distance;
+        double approachX = fieldPose.x() + ux * approachStandoffInches;
+        double approachY = fieldPose.y() + uy * approachStandoffInches;
+        double scoringX = fieldPose.x() + ux * scoringStandoffInches;
+        double scoringY = fieldPose.y() + uy * scoringStandoffInches;
+        double aimHeading = Math.atan2(fieldPose.y() - approachY, fieldPose.x() - approachX);
+
+        return new CellTarget(
+                this,
+                new Pose(approachX, approachY, aimHeading),
+                new Pose(scoringX, scoringY, aimHeading),
+                aimHeading
+        );
     }
 
     @Override
