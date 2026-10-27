@@ -75,6 +75,23 @@ public class ScoringMechanism {
                 && outtakeRightMotor != null;
     }
 
+    /** Names of configured mechanism motors that are missing, for Driver Station warnings. */
+    public String missingMotorNames() {
+        StringBuilder missing = new StringBuilder();
+        addMissing(missing, HardwareConfig.INTAKE_MOTOR, intakeMotor);
+        addMissing(missing, HardwareConfig.TRANSFER_MOTOR, transferMotor);
+        addMissing(missing, HardwareConfig.OUTTAKE_LEFT_MOTOR, outtakeLeftMotor);
+        addMissing(missing, HardwareConfig.OUTTAKE_RIGHT_MOTOR, outtakeRightMotor);
+        return missing.toString();
+    }
+
+    private static void addMissing(StringBuilder missing, String name, DcMotorEx motor) {
+        if (motor == null) {
+            if (missing.length() > 0) missing.append(", ");
+            missing.append(name);
+        }
+    }
+
     // HARDWARE LOOKUP
 
     private static DcMotorEx getMotor(
