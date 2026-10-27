@@ -335,6 +335,10 @@ public class Robot {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
+        telemetry.addData("Cell camera", cellVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; Cell tracking is off");
+        telemetry.addData("Pollen camera", gameVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; visual Pollen tracking is off");
         Cell targetCell = cellMap.bestOurCell(follower.pose());
         telemetry.addData("aim (hold Y)", targetCell == null ? "no Cell" :
                 targetCell.alliance + " " + targetCell.fieldSide + " " + targetCell.state());
@@ -345,6 +349,9 @@ public class Robot {
                 ? "Cell not tracked; hold Y aims between our Cell estimates" : "none");
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
+        String missingMotors = mechanism.missingMotorNames();
+        telemetry.addData(missingMotors.isEmpty() ? "mechanism motors" : "MECHANISM WARNING",
+                missingMotors.isEmpty() ? "all found" : "missing: " + missingMotors);
         if (selectedStartPose() != null) {
             telemetry.addData("start pose (dpad)", selectedStartPose());
         }
