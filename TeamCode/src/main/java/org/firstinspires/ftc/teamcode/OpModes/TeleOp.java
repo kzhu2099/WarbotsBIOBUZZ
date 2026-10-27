@@ -2,59 +2,66 @@ package org.firstinspires.ftc.teamcode.OpModes;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
+import org.firstinspires.ftc.teamcode.ManualDriveAndShoot;
 import org.firstinspires.ftc.teamcode.Robot;
-import org.firstinspires.ftc.teamcode.ScoringState;
 
 /**
- * The one real TeleOp OpMode. (AUDIT NOTE: the recovered project had TWO
- * OpModes both registered with @TeleOp(name = "TeleOp") - this one, and
- * OpModes/TeleOpTemplate.java, which does not compile against the new
- * Robot API and has been removed as a duplicate. Two OpModes with the same
- * registered name is itself a real bug, independent of terminology - the
- * driver station's OpMode list can only meaningfully show one "TeleOp.")
- *
- * Real subsystem control (project brief section 26), not raw motors:
- * driving (with field-centric toggle, cell auto-aim, pollen auto-track),
- * intake/transfer/outtake as one automatic mechanism the driver starts
- * and stops rather than three separate raw powers, and a manual override
- * for recovering from a jam without it being possible to get the robot
- * stuck in an autonomous-only state.
+ * Main TeleOp. Uses the full robot when Pinpoint and Foresight are ready.
+ * If full initialization fails, it falls back to manual robot-centric drive
+ * and the timed scoring mechanism, without requiring cameras or odometry.
  */
 @com.qualcomm.robotcore.eventloop.opmode.TeleOp(name = "TeleOp")
 public class TeleOp extends OpMode {
 
     private Robot robot;
+    private ManualDriveAndShoot fallback;
+    private String initWarning;
 
     @Override
     public void init() {
-        robot = Robot.resumeFromAuto(hardwareMap, telemetry, gamepad1, gamepad2);
+        try {
+            robot = Robot.resumeFromAuto(hardwareMap, telemetry, gamepad1, gamepad2);
+        } catch (RuntimeException e) {
+            initWarning = readableMessage(e);
+            fallback = new ManualDriveAndShoot(hardwareMap, telemetry);
+            fallback.setModeNotice("Full TeleOp unavailable: " + initWarning
+                    + ". Using robot-centric drive and manual scoring controls.");
+            telemetry.addLine("WARNING: reduced TeleOp started.");
+            fallback.addTelemetry();
+            telemetry.update();
+        }
     }
 
     @Override
     public void init_loop() {
-        robot.toggleAlliance();
-        robot.updateTelemetry();
+        if (robot != null) {
+            robot.toggleAlliance();
+            robot.updateTelemetry();
+        } else if (fallback != null) {
+            fallback.addTelemetry();
+            telemetry.update();
+        }
     }
 
     @Override
     public void start() {
-        robot.updateWorldModel(getRuntime());
+        if (robot != null) {
+            robot.updateWorldModel(getRuntime());
+        }
     }
 
     @Override
     public void loop() {
         double now = getRuntime();
 
-        // 1. PERCEIVE - same world-model update Autonomous uses, so
-        // TeleOp's telemetry/aiming/inventory are exactly as trustworthy.
-        robot.updateWorldModel(now);
-
-        // 2 & 3. DECIDE + ACT - here, "deciding" is the driver's job;
-        // this just turns their inputs into commands.
-        robot.teleOpDrive();
-        handleMechanism(now);
-
-        robot.updateTelemetry(now);
+        if (robot != null) {
+            robot.updateWorldModel(now);
+            robot.teleOpDrive();
+            handleMechanism(now);
+            robot.updateTelemetry(now);
+        } else if (fallback != null) {
+            fallback.update(now, gamepad1, gamepad2);
+        }
     }
 
     private void handleMechanism(double now) {
@@ -62,18 +69,17 @@ public class TeleOp extends OpMode {
         robot.mechanism.setManualOverride(overrideHeld, now);
 
         if (overrideHeld) {
-            // Raw control for freeing a jam - intentionally bypasses the
-            // state machine entirely rather than trying to force a state
-            // transition that might not reflect physical reality.
             robot.mechanism.manualIntake(-gamepad2.left_stick_y);
             robot.mechanism.manualTransfer(-gamepad2.right_stick_y);
             robot.mechanism.manualOuttake(gamepad2.right_trigger);
             return;
         }
 
-        if (gamepad2.left_trigger > 0.1 && robot.mechanism.state() == ScoringState.INTAKE_OFF) {
+        if (gamepad2.left_trigger > 0.1
+                && robot.mechanism.state() == org.firstinspires.ftc.teamcode.ScoringState.INTAKE_OFF) {
             robot.mechanism.startIntake(now);
-        } else if (gamepad2.left_trigger <= 0.1 && robot.mechanism.state() == ScoringState.INTAKING) {
+        } else if (gamepad2.left_trigger <= 0.1
+                && robot.mechanism.state() == org.firstinspires.ftc.teamcode.ScoringState.INTAKING) {
             robot.mechanism.stopIntake(now);
         }
 
@@ -81,13 +87,25 @@ public class TeleOp extends OpMode {
             robot.mechanism.triggerOuttake(now);
         }
 
-        if (gamepad2.aWasPressed() && robot.mechanism.state() == ScoringState.FAULT) {
+        if (gamepad2.aWasPressed()
+                && robot.mechanism.state() == org.firstinspires.ftc.teamcode.ScoringState.FAULT) {
             robot.mechanism.clearFault(now);
         }
     }
 
     @Override
     public void stop() {
-        robot.stop();
+        if (robot != null) {
+            robot.stop();
+        }
+        if (fallback != null) {
+            fallback.stop();
+        }
+    }
+
+    private static String readableMessage(RuntimeException e) {
+        String message = e.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? e.getClass().getSimpleName() : message;
     }
 }
