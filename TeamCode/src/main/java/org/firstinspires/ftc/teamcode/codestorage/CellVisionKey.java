@@ -63,8 +63,7 @@ public class CellVisionKey extends CameraKey {
     }
 
     private static YawPitchRollAngles cameraOrientation() {
-        // yaw=pitch=roll=0 means "camera pointing straight up" per the FTC
-        // SDK's own convention - exactly this camera's real orientation.
+        // In the FTC SDK's coordinate system, zero pitch and roll point straight up.
         return new YawPitchRollAngles(AngleUnit.DEGREES,
                 RobotGeometry.CELL_CAMERA_YAW_DEGREES,
                 RobotGeometry.CELL_CAMERA_PITCH_DEGREES,
@@ -93,9 +92,7 @@ public class CellVisionKey extends CameraKey {
                         confidence, nowSeconds, sdkRobotPose));
 
             } else if (detection instanceof AprilTagClusterDetection) {
-                // See CellVision's Javadoc: unverified whether this field's
-                // cell tags are actually registered as SDK-level clusters.
-                // If they are not, this branch simply never fires.
+                // Check on the robot whether the Cell tags arrive as a cluster.
                 AprilTagClusterDetection cluster = (AprilTagClusterDetection) detection;
                 double confidence = cluster.percentClusterFound / 100.0;
 
