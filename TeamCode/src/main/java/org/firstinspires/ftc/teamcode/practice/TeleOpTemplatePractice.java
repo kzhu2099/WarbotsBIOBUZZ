@@ -35,6 +35,10 @@ public class TeleOpTemplatePractice extends OpMode {
 
     @Override
     public void start() {
+        String name = "Miranda";
+                int age = 17;
+                double Jalisco = 0.70;
+                double Chicago = 0.0;
         // HINT: Code here runs exactly once when the match starts.
     }
 
