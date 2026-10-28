@@ -1,5 +1,10 @@
 package org.firstinspires.ftc.teamcode.practice;
 
+import static com.pedropathing.api.Paths.*;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
+
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -15,6 +20,10 @@ public class MatthewPractice extends OpMode {
     public DcMotorEx frontRight;
     public DcMotorEx backLeft;
     public DcMotorEx backRight;
+
+    public Pose autoMoveStartPose;
+    public Pose autoMoveEndPose;
+    public Path autoMovePath;
 
     public Follower follower;
 
@@ -35,17 +44,29 @@ public class MatthewPractice extends OpMode {
 
     @Override
     public void start() {
+        autoMoveStartPose = null;
+        autoMoveEndPose = null;
+        autoMovePath = null;
         // HINT: Code here runs exactly once when the match starts.
     }
 
     @Override
     public void loop() {
 
+        follower.update();
+        if (autoMovePath != null) {
+            if (!follower.isBusy()) {
+                autoMovePath = null;
+            } else {
+                return;
+            }
+        }
+
         float gamepadJoystick1Y = -this.gamepad1.left_stick_y;
         boolean gamepadButtonB = this.gamepad1.b;
 
         if (gamepadButtonB) {
-            gamepadJoystick1Y /= 0.5f;
+            gamepadJoystick1Y *= 0.5f;
         }
         telemetry.addData("Button B Pressed (slow)", gamepadButtonB);
         telemetry.addData("Joystick 1 Power", gamepadJoystick1Y);
@@ -57,7 +78,13 @@ public class MatthewPractice extends OpMode {
         backLeft.setPower(gamepadJoystick1Y);
         backRight.setPower(gamepadJoystick1Y);
 
-
+        boolean gamepadButtonY = this.gamepad1.y;
+        if (autoMovePath == null && gamepadButtonY) {
+            autoMoveEndPose = new Pose(70.5f, 22.5f, 180);
+            autoMoveStartPose = follower.pose();
+            autoMovePath = line(autoMoveStartPose,autoMoveEndPose).linear(autoMoveStartPose, autoMoveEndPose);
+            follower.follow(autoMovePath);
+        }
 
         // HINT: Implement your control change logic here.
         // IF a specific button (like gamepad1.y) is pressed:
@@ -76,6 +103,7 @@ public class MatthewPractice extends OpMode {
         backLeft.setPower(0f);
         backRight.setPower(0f);
 
+        follower.stop();
 
         // HINT: Safely stop all drivetrain motors here by setting powers to 0.
     }
