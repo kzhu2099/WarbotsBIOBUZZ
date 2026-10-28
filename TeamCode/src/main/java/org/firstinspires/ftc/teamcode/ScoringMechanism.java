@@ -21,14 +21,14 @@ public class ScoringMechanism {
     public static double OUTTAKE_LEFT_POWER = 1.0;
     public static double OUTTAKE_RIGHT_POWER = 1.0;
 
-    // MOTORS
+    // Hardware
 
     private final DcMotorEx intakeMotor;
     private final DcMotorEx transferMotor;
     private final DcMotorEx outtakeLeftMotor;
     private final DcMotorEx outtakeRightMotor;
 
-    // STATE
+    // Current state
 
     private ScoringState state = ScoringState.INTAKE_OFF;
     private ScoringState previousState = ScoringState.INTAKE_OFF;
@@ -43,7 +43,7 @@ public class ScoringMechanism {
 
     private boolean manualOverrideActive = false;
 
-    // CONSTRUCTOR
+    // Find the configured motors
 
     public ScoringMechanism(HardwareMap hardwareMap) {
 
@@ -75,7 +75,7 @@ public class ScoringMechanism {
                 && outtakeRightMotor != null;
     }
 
-    /** Names of configured mechanism motors that are missing, for Driver Station warnings. */
+    /** Lists mechanism motors that were not found in the hardware map. */
     public String missingMotorNames() {
         StringBuilder missing = new StringBuilder();
         addMissing(missing, HardwareConfig.INTAKE_MOTOR, intakeMotor);
@@ -92,7 +92,7 @@ public class ScoringMechanism {
         }
     }
 
-    // HARDWARE LOOKUP
+    // Hardware lookup
 
     private static DcMotorEx getMotor(
             HardwareMap hardwareMap,
@@ -105,7 +105,7 @@ public class ScoringMechanism {
         }
     }
 
-    // INTAKE
+    // Intake
 
     public void startIntake(double nowSeconds) {
         startIntake(null, nowSeconds);
@@ -146,7 +146,7 @@ public class ScoringMechanism {
         }
     }
 
-    // OUTTAKE / SCORING
+    // Outtake
 
     public boolean triggerOuttake(double nowSeconds) {
 
@@ -170,7 +170,7 @@ public class ScoringMechanism {
         return true;
     }
 
-    // FAULT HANDLING
+    // Fault recovery
 
     public void clearFault(double nowSeconds) {
 
@@ -185,7 +185,7 @@ public class ScoringMechanism {
         }
     }
 
-    // MAIN STATE-MACHINE UPDATE
+    // State machine
 
     public void update(double nowSeconds) {
 
@@ -290,7 +290,7 @@ public class ScoringMechanism {
         }
     }
 
-    // BALL CLASSIFICATION
+    // Game-piece type
 
     private BallType classify() {
 
@@ -301,7 +301,7 @@ public class ScoringMechanism {
         return BallType.POLLEN;
     }
 
-    // STATE TRANSITION
+    // State transitions
 
     private void transition(
             ScoringState next,
@@ -311,7 +311,7 @@ public class ScoringMechanism {
         stateEnteredAtSeconds = nowSeconds;
     }
 
-    // MOTOR CONTROL
+    // Motor helpers
 
     private void setMotor(
             DcMotorEx motor,
@@ -322,7 +322,7 @@ public class ScoringMechanism {
         }
     }
 
-    // MANUAL TELEOP OVERRIDE
+    // Manual override
 
     public void setManualOverride(
             boolean active,
@@ -371,7 +371,7 @@ public class ScoringMechanism {
         }
     }
 
-    // STATE / EVENT QUERIES
+    // State and event queries
 
     public ScoringState state() {
         return state;
@@ -418,7 +418,7 @@ public class ScoringMechanism {
                 || state == ScoringState.CLEARING;
     }
 
-    // EMERGENCY STOP
+    // Stop all motors
 
     public void stopAll() {
 

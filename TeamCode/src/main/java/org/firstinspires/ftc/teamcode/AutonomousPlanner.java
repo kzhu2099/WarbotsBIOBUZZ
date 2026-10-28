@@ -196,12 +196,7 @@ public class AutonomousPlanner {
         return ReplanReason.NONE;
     }
 
-    /**
-     * Whether it is safe/worthwhile to start (or continue) another
-     * collect-and-score cycle given the time remaining, per project brief
-     * section 24. Deliberately conservative: requires enough time to
-     * finish a cycle AND still park afterward.
-     */
+    /** Returns true when another collection and scoring cycle still leaves time to park. */
     public boolean worthAnotherCycle(WorldState world, double estimatedCollectSeconds,
                                       double estimatedScoreSeconds, double estimatedParkSeconds,
                                       double safeReserveSeconds) {
