@@ -6,8 +6,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.pedropathing.follower.Follower;
 
-import kotlin._Assertions;
-
 // HELLO GUYSSSSSS!!!!!! MY NAME IS MIRANDA :)
 // Practice OpMode; disabled so it stays out of the Driver Station menu.
 @Disabled
@@ -45,7 +43,7 @@ public class MirandaSuperCode extends OpMode {
         double Chicago = 0.0;
         String fruit = "not mango";
         String animal = "dolphin";
-        String [] shoping_list = {
+        String [] lista_del_mercado= {
                 "caviar",
                 "sauce",
                 "spaghetti",
@@ -54,6 +52,16 @@ public class MirandaSuperCode extends OpMode {
                 "shrimp",
                 "office",
                 "watermelon"
+        };
+        String[] shopping_list = {
+                "las huevitas",
+                "la salsa",
+                "el espageti",
+                "Pedazo de carne",
+                "el aguacate",
+                "los camarones",
+                "la oficina",
+                "el sandia"
         };
     }
 
