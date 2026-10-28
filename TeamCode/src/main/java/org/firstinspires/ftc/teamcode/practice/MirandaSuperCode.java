@@ -43,6 +43,16 @@ public class MirandaSuperCode extends OpMode {
         double Chicago = 0.0;
         String fruit = "not mango";
         String animal = "not dolphin";
+        String[] shopping_list = {
+                "las huevitas",
+                "la salsa",
+                "el espageti",
+                "Pedazo de carne",
+                "el aguacate",
+                "los camarones",
+                "la oficina",
+                "el sandia"
+        };
     }
 
     @Override
