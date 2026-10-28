@@ -21,25 +21,8 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import java.util.ArrayList;
 import java.util.List;
 
-// ANSWER KEY for practice/CellVisionPractice.java. Replaces the previous
-// TipperReaderKey.java.
-//
-// AUDIT NOTE (revised): an earlier pass of this project's production
-// CellVision claimed AprilTagSingleDetection/AprilTagClusterDetection were
-// fabricated types that "do not exist in the real FTC SDK." That claim was
-// WRONG, and has since been corrected - checked directly against this
-// SDK's own current sample code (ConceptAprilTag.java,
-// ConceptAprilTagLocalization.java, ConceptAprilTagEasy.java): both types
-// are real. AprilTagDetection is a base type carrying .ftcPose and
-// .robotPose; AprilTagSingleDetection (one physical tag: .id, .metadata,
-// .center) and AprilTagClusterDetection (several tags on one rigid object:
-// .metadata.name, .percentClusterFound) are its real subtypes. This key
-// now follows that real, sample-verified pattern - see CellVision's
-// Javadoc in the main package for the full explanation.
-//
-// Also newly added: setCameraPose(...), which is what makes
-// detection.robotPose available - the SDK's own directly-computed
-// field-relative robot pose. Camera mount numbers live in RobotGeometry.
+// Reference implementation for the Cell vision practice exercise.
+// Uses the FTC SDK's single-tag and cluster detection types.
 
 public class CellVisionKey extends CameraKey {
 
