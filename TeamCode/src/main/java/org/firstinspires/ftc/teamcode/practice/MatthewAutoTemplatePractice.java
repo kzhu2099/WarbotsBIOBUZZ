@@ -54,6 +54,8 @@ public class MatthewAutoTemplatePractice extends LinearOpMode {
             // follower.update();
         }
 
+        follower.stop();
+
         // HINT: Ensure all movement ceases here now that the loop above has exited.
     }
 }
