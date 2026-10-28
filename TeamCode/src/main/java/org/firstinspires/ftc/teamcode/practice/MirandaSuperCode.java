@@ -36,7 +36,11 @@ public class MirandaSuperCode extends OpMode {
 
     @Override
     public void start() {
-        // HINT: Code here runs exactly once when the match starts.
+        // HINT: Code here runs exactly once when the match starts
+        String name = "Miranda";
+        int age = 17;
+        double Jalisco = 0.70;
+        double Chicago = 0.0;
     }
 
     @Override
