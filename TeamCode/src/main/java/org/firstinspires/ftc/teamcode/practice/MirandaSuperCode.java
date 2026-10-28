@@ -41,6 +41,7 @@ public class MirandaSuperCode extends OpMode {
         int age = 17;
         double Jalisco = 0.70;
         double Chicago = 0.0;
+        String fruit = "not mango";
     }
 
     @Override
