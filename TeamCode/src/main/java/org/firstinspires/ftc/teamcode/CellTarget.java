@@ -2,12 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
 
-/**
- * A computed scoring target for a specific {@link Cell}: where to stop and
- * approach from, where to actually be when scoring, and which way to face.
- * Produced fresh by {@link Cell#computeTarget()} every time it's needed,
- * rather than ever being hardcoded - see project brief section 22/23.
- */
+/** The approach pose and scoring pose calculated for a Cell. */
 public class CellTarget {
 
     public final Cell cell;

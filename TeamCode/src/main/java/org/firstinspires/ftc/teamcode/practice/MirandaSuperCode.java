@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.pedropathing.follower.Follower;
 
 // HELLO GUYSSSSSS!!!!!! MY NAME IS MIRANDA :)
-// AUDITED, UNCHANGED: same reasoning as AutoTemplatePractice.java.
+// Practice OpMode; disabled so it stays out of the Driver Station menu.
 @Disabled
 @TeleOp(name = "TeleOp Practice")
 public class MirandaSuperCode extends OpMode {

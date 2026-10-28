@@ -15,33 +15,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * PRACTICE TEMPLATE - fill in the TODOs. This is the exercise version of
- * the real CellVision class. Compare your work against
- * codestorage/CellVisionKey.java once you've given it a real try.
- *
- * Uses one upward-facing webcam to read AprilTags - both the tags mounted
- * on each alliance's Cell structures, and (if this field turns out to
- * have any) separate fixed tags elsewhere usable to double-check robot
- * position.
- *
- * REAL, CURRENT FTC SDK API (verified against this SDK's own current
- * sample code - ConceptAprilTag.java, ConceptAprilTagLocalization.java):
- * AprilTagDetection is a base type carrying .ftcPose (range/bearing/x/y/yaw)
- * and .robotPose (the SDK's own computed field-relative robot pose, if the
- * tag's field position is known AND the camera's mount pose was
- * configured - see setCameraPose() in the constructor below). Its real
- * subtypes are AprilTagSingleDetection (one physical tag - carries .id,
- * .metadata, .center) and AprilTagClusterDetection (several tags on one
- * rigid object, recognized together - carries .metadata.name,
- * .percentClusterFound). Use "detection instanceof AprilTagSingleDetection"
- * to tell them apart, same as you would for any Java type check.
- *
- * (An earlier version of this exercise - then called TipperReader - had
- * you check for a type that really did turn out to exist, just not
- * documented where it was first looked for. The correction above reflects
- * what's actually confirmed against the current SDK.)
- */
+/** undefined */
 public class CellVisionPractice extends CameraPractice {
 
     private final AprilTagProcessor tagProcessor;

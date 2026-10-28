@@ -3,7 +3,10 @@ package org.firstinspires.ftc.teamcode;
 import com.pedropathing.math.Pose;
 import com.pedropathing.utils.Angle;
 
-/** One Cell's tag identity, field pose, tracking state, and approach/scoring poses. The pose heading points outward through its opening; the robot faces back toward the Cell to score. The paired-Hive tipping state is not modeled here. */
+/**
+ * Stores a Cell's identity, estimated field pose, and tracking state. Its
+ * target poses tell the robot where to line up and where to score.
+ */
 public class Cell {
 
     /** Below this, a sighting is treated as fresh enough to trust fully. */

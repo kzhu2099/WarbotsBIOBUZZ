@@ -10,34 +10,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-/**
- * The middle bring-up stage, between {@link DriveOnlyTeleOp} and the full
- * {@code TeleOp}: real odometry, real field-centric driving, and real pose
- * telemetry - but still no Foresight tuning, no cameras, and no
- * intake/transfer/outtake mechanism required.
- *
- * Use this one once odometry (Pinpoint + pods) is physically wired up and
- * {@code pedro.Constants.localizerConfig} has real pod offsets/directions
- * in it, but BEFORE PedroPathing's AutoTune/Foresight tuning has been done.
- * It exists to let you verify odometry is actually working correctly - pose
- * increasing the right direction as you push the robot, heading matching
- * reality, field-centric driving pointing "forward" the way you expect -
- * before spending time on the full Foresight tuning pass, and before the
- * rest of the robot (mechanisms, cameras) needs to exist at all.
- *
- * Like DriveOnlyTeleOp, this only ever calls follower.manual(...), never
- * follow()/hold(), so passing a null Algorithm to Follower is safe - see
- * NullLocalizer's header (in the main package) for the full explanation of
- * why that's true. The difference here is the localizer is the REAL
- * PinpointLocalizer instead of a no-op stand-in, which is what unlocks
- * field-centric driving (it needs a real heading source) and honest pose
- * telemetry.
- *
- * Bring-up order recap:
- *   1. DriveOnlyTeleOp   - four drive motors only, robot-centric.
- *   2. OdometryTeleOp    - + real odometry, field-centric, real pose telemetry.
- *   3. Full TeleOp       - + Foresight tuned, + cameras + mechanisms wired up.
- */
+/** undefined */
 @TeleOp(name = "Odometry TeleOp")
 public class OdometryTeleOp extends OpMode {
 

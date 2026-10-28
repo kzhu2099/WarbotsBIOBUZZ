@@ -11,25 +11,7 @@ import org.firstinspires.ftc.teamcode.RobotGeometry;
 import org.firstinspires.ftc.teamcode.Sequence;
 import org.firstinspires.ftc.teamcode.Step;
 
-/**
- * A simple, FIXED (non-dynamic) one-cycle autonomous, built from Step/
- * Sequence - useful both as a safe, easy-to-predict backup routine and as
- * a teaching example for how Step/Sequence work, in contrast with the
- * real dynamic system in {@link AutoOpMode}/AutonomousController.
- *
- * AUDIT FIX: this file previously referenced robot.vision (field is now
- * gameVision) and robot.stepIntakeFor()/stepLaunchFor() (raw-motor-power
- * Step helpers that no longer exist - see project brief section 31, "do
- * not consider intake finished because intake() sets motor power"). It
- * did not compile. It now drives the real ScoringMechanism state machine
- * through Robot.stepIntake()/stepScore().
- *
- * This intentionally does NOT use the dynamic Cell/BallMap system - the
- * cell position here is a fixed guess registered as a Point, not computed
- * from a live AprilTag sighting. That's the actual, honest difference
- * between this simple template and AutoOpMode: same Step/Sequence
- * mechanics, but no perception-driven decision making.
- */
+/** undefined */
 @Autonomous(name = "Auto (Simple Template)")
 public class AutoTemplate extends OpMode {
 

@@ -2,19 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
 
-/**
- * One structured ball observation from a single camera frame, as produced
- * by {@link GameVision}. This replaces "boolean seesBall()" - a single
- * frame can (and often will) contain several of these at once.
- *
- * cameraX/cameraY are normalized image-plane coordinates (-1..1, 0 =
- * center) so callers that just want "is it left or right of center" don't
- * need to know the frame resolution. bearingDegrees/distanceInches and
- * fieldPose are the camera's best estimate of where the ball actually is,
- * using the robot pose at capture time - see GameVision for exactly how
- * that estimate is computed and its known limitations (monocular distance
- * estimate from blob size, not true depth).
- */
+/** A game-piece observation from one camera frame. */
 public class BallDetection {
 
     public final BallType type;

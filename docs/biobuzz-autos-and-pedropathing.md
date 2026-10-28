@@ -16,6 +16,23 @@ Read this before testing either new auto. The code has not been tested on the ph
 
 At 21 seconds, the second auto stops scoring and starts parking so it has time to return to the Loading Zone. A timeout also ends scoring early and attempts to park. Without a manual Flower choice, it picks the Flower nearest the selected start.
 
+## Which TeleOp to use
+
+**TeleOp** is the normal choice. It tries to start with the full drive, Pinpoint localization, Foresight controller, cameras, and scoring mechanism. If a camera is absent, it still runs and shows a warning: the missing camera's features are disabled. If full initialization fails because Pinpoint or Foresight isn't ready, it automatically switches to robot-centric manual driving and timed scoring controls.
+
+**Drive + Shoot (No Camera)** is the bring-up mode for driving and operating the mechanism before cameras, odometry, or Foresight are ready. It does not open either camera and does not need the Pinpoint. The driver aims by turning the robot manually.
+
+**Drive Only TeleOp** is for checking the four drive motors by themselves. It does not run the intake, transfer, or outtake mechanism. **Odometry TeleOp** adds Pinpoint-based pose and field-centric driving, but still doesn't use cameras or Foresight.
+
+### Manual drive-and-shoot controls
+
+- **Gamepad 1:** left stick drives forward/back and strafes; right stick turns. Hold the right trigger for slower, more precise driving. This mode is robot-centric, not field-centric.
+- **Gamepad 2:** hold the left trigger to start intake; keep it held until the timed intake stage hands off to transfer. After transfer finishes, press the right trigger to shoot.
+- **Gamepad 2 Back:** hold for manual mechanism override. Left stick Y controls intake, right stick Y controls transfer, and right trigger runs both outtake motors. Releasing Back returns to the normal state machine.
+- **Warnings:** camera/odometry/Foresight aren't used in the manual mode. The Driver Station lists missing drive or mechanism motors. A missing drive motor can prevent driving; a missing intake, transfer, or outtake motor means that part of the scoring cycle cannot work. The timed state machine cannot prove that a Pollen was actually acquired or shot.
+
+Missing hardware should never be mistaken for full functionality. Read the Driver Station warnings before moving the robot, and test at low power with the wheels lifted when checking motor directions.
+
 ## Select the start and Flower
 
 Do this while the Driver Station shows INIT:
@@ -31,6 +48,11 @@ Check the displayed alliance, start pose, and Flower before pressing Play. A pos
 | File | What to change here |
 |---|---|
 | `OpModes/LeaveOnlyAuto.java` | Leave-and-park sequence |
+| `OpModes/TeleOp.java` | Full TeleOp, with a manual fallback if Pinpoint/Foresight prevents setup |
+| `OpModes/DriveAndShootTeleOp.java` | Manual drive and scoring without cameras, Pinpoint, or Foresight |
+| `ManualDriveAndShoot.java` | Shared manual controls and missing-hardware warnings |
+| `OpModes/DriveOnlyTeleOp.java` | Four-motor drive checks only; no scoring mechanism |
+| `OpModes/OdometryTeleOp.java` | Drive and Pinpoint checks; no camera or scoring mechanism |
 | `OpModes/ShootCollectOnePollenAuto.java` | Preload, Flower pickup, second shot, and park |
 | `StartPosition.java` | The three starting poses |
 | `BioBuzzAutoConfig.java` | Leave distance, timers, Flower positions, zone poses, and the route around the field |

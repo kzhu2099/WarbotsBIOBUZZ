@@ -1,36 +1,29 @@
 package org.firstinspires.ftc.teamcode;
 
 /**
- * State of the physical intake -> transfer -> outtake pipeline, owned and
- * driven by {@link ScoringMechanism}. This is the "actual subsystem state
- * model" the project brief asks for in place of bare intake()/outtake()
- * methods that just set motor power.
+ * State of the intake, transfer, and outtake sequence. There are no piece
+ * sensors, so reaching READY_TO_SCORE means the transfer timer finished,
+ * not that a game piece was physically confirmed in place.
  */
 public enum ScoringState {
-    /** Intake is off. Idle, ready to be commanded on. */
+    /** Intake is off and ready to start. */
     INTAKE_OFF,
 
-    /** Intake is running, actively trying to pick up a ball. */
+    /** Intake motor is running. */
     INTAKING,
 
-    /** A ball was detected entering the mechanism; moving it to the ready
-     *  position via the transfer stage. */
+    /** Transfer motor is moving a piece toward the shooter. */
     TRANSFERRING,
 
-    /** A ball (or balls) has reached the ready/stored position and the
-     *  mechanism is prepared to outtake on command. */
+    /** The timed transfer finished; the driver can shoot. */
     READY_TO_SCORE,
 
-    /** Outtake motors are actively running to score into the cell. */
+    /** Outtake motors are running. */
     OUTTAKING,
 
-    /** Outtake just ran; briefly continuing to make sure the mechanism
-     *  path is fully clear before accepting the next ball. */
+    /** Brief pause after outtake before the next cycle. */
     CLEARING,
 
-    /** Something did not behave as expected (e.g. a ball entered intake
-     *  but never reached the ready position within a reasonable time, or
-     *  a sensor reports an impossible state). Mechanism stops moving balls
-     *  automatically and waits for manual/automatic recovery. */
+    /** Mechanism stopped after an error and needs recovery. */
     FAULT
 }

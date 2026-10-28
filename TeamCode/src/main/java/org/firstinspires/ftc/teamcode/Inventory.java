@@ -1,15 +1,14 @@
 package org.firstinspires.ftc.teamcode;
 
 /**
- * The robot's actual game-element inventory. Per the current rule
- * clarification: the robot can carry a COMBINATION of up to four
- * Pollen/Nectar balls total - not four of each independently. Every
- * capacity check in the project should go through this class rather than
- * comparing raw counts against a magic number somewhere else.
+ * Tracks how many Pollen and Nectar pieces the robot expects to be carrying.
+ * The four-piece limit applies to the combined total. Since the mechanism
+ * has no piece sensors, counts may reflect timed assumptions rather than
+ * confirmed pickups or scores.
  */
 public class Inventory {
 
-    /** pollen + nectar can never exceed this. */
+    /** Maximum combined number of Pollen and Nectar pieces. */
     public static final int MAX_TOTAL_BALLS = 4;
 
     private int pollenCount = 0;
@@ -38,21 +37,12 @@ public class Inventory {
         return remainingCapacity() <= 0;
     }
 
-    /** Would acquiring one more ball of this type fit within capacity? */
+    /** Returns whether one more piece fits within capacity. */
     public boolean canAcquire(BallType type) {
         return remainingCapacity() > 0;
     }
 
-    /**
-     * Records that a ball of the given type was actually, verifiably
-     * acquired (see ScoringMechanism / AutonomousController - this should
-     * only be called after acquisition is confirmed, never just because
-     * intake was commanded on).
-     *
-     * @return true if it was recorded, false if capacity did not allow it
-     *         (which would itself indicate a mechanism/sensor problem,
-     *         since the mechanism should refuse to intake past capacity).
-     */
+    /** Adds one piece to the estimated inventory if capacity allows it. */
     public boolean acquire(BallType type) {
         if (!canAcquire(type)) {
             return false;
@@ -66,7 +56,7 @@ public class Inventory {
         return true;
     }
 
-    /** Removes one ball of the given type, e.g. if it was lost/ejected. */
+    /** Removes one piece from the inventory estimate, if present. */
     public void remove(BallType type) {
         if (type == BallType.POLLEN) {
             pollenCount = Math.max(0, pollenCount - 1);
@@ -76,9 +66,8 @@ public class Inventory {
     }
 
     /**
-     * Records that the entire current load was scored successfully. Only
-     * call this once scoring is actually verified (see AutoState.VERIFY_SCORE) -
-     * never assume a score just because outtake ran.
+     * Clears the estimated load after a scoring cycle. The code assumes the
+     * outtake worked; the robot has no sensor to confirm that the pieces scored.
      */
     public void scoreAll() {
         if (pollenCount > 0) {
@@ -98,9 +87,7 @@ public class Inventory {
         return lastScoredType;
     }
 
-    /** Used only when resuming state saved from a previous OpMode (see
-     *  AutoToTeleOp) - sets raw counts directly rather than going through
-     *  acquire(), since this isn't a new acquisition event. */
+    /** Restores counts saved when switching from autonomous to TeleOp. */
     void restoreFrom(int pollenCount, int nectarCount) {
         this.pollenCount = Math.max(0, Math.min(pollenCount, MAX_TOTAL_BALLS));
         this.nectarCount = Math.max(0, Math.min(nectarCount, MAX_TOTAL_BALLS - this.pollenCount));

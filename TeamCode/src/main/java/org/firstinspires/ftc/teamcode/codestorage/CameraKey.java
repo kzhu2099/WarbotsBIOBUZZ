@@ -56,7 +56,7 @@ public class CameraKey {
 
     @SuppressWarnings("unchecked")
     protected <T extends VisionProcessor> T processor(int index) {
-        // AUDIT FIX: the original version of this key indexed straight
+        // Note: the original version of this key indexed straight
         // into `processors` with no bounds check, so a mismatched index
         // (or an empty processors array) would throw
         // ArrayIndexOutOfBoundsException instead of failing the same safe

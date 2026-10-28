@@ -73,7 +73,7 @@ public class AutonomousController {
         lastWorldState = world;
 
         try {
-            // 2. DECIDE + 3. ACT.
+            // Run the active state.
             runState(world, nowSeconds);
         } catch (RuntimeException e) {
             // Stop the drive and mechanism if a state handler fails.
@@ -333,9 +333,7 @@ public class AutonomousController {
         Cell cell = planner.resolveScoringCell(world);
         committedCell = cell;
         if (cell == null) {
-            // No known cell at all - shouldn't happen once alliance is
-            // selected at init, but a real failsafe (project brief section
-            // 25) beats driving somewhere made up.
+            // If no Cell is available, skip scoring and park rather than guess at a target.
             beginPark(world, now);
             return;
         }

@@ -6,8 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.pedropathing.follower.Follower;
 
-// CHANGE
-// AUDITED, UNCHANGED: same reasoning as AutoTemplatePractice.java.
+// Template for experimenting with manual TeleOp controls.
 @Disabled
 @TeleOp(name = "TeleOp Practice")
 public class TeleOpTemplatePractice extends OpMode {

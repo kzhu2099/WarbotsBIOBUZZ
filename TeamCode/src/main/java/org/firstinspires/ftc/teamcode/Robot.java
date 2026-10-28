@@ -88,15 +88,9 @@ public class Robot {
         AutoToTeleOp.save(follower.pose(), redAlliance, inventory.pollenCount(), inventory.nectarCount());
     }
 
-    // ---- The closed loop: PERCEIVE ---------------------------------------
+    // Update the robot's view of the field
 
-    /**
-     * Pulls in everything the cameras and mechanism sensors currently
-     * know and folds it into the one shared world model. Call this
-     * exactly once per OpMode loop() iteration, before making any
-     * decisions that tick - AutonomousController does this at the start
-     * of every update(), and TeleOp does the same in its loop().
-     */
+    /** Updates localization, vision tracking, inventory, and mechanism state. */
     public void updateWorldModel(double nowSeconds) {
         this.lastKnownNowSeconds = nowSeconds;
         follower.update();
@@ -137,7 +131,7 @@ public class Robot {
                 gameVision.isAvailable(), cellVision.isAvailable(), timeRemainingSeconds, nowSeconds);
     }
 
-    // ---- Alliance / starting configuration -------------------------------
+    // Alliance and starting pose
 
     public void toggleAlliance() {
         if (gamepad1.xWasPressed()) {
@@ -165,7 +159,7 @@ public class Robot {
         return startPoseOptions.length == 0 ? null : startPoseOptions[startPoseIndex];
     }
 
-    // ---- TeleOp driving ---------------------------------------------------
+    // TeleOp driving
 
     public void teleOpDrive() {
         if (gamepad1.bWasPressed()) {
@@ -229,7 +223,7 @@ public class Robot {
         follower.manual(new DrivePowers(forward, 0, -offset * 0.5));
     }
 
-    // ---- Aiming / navigation helpers ---------------------------------------
+    // Aiming and navigation
 
     public double headingTo(double x, double y) {
         Pose pose = follower.pose();
@@ -322,7 +316,7 @@ public class Robot {
         setStartPose(Points.get(name));
     }
 
-    // ---- Lifecycle ----------------------------------------------------------
+    // Stop and telemetry
 
     public void stop() {
         follower.stop();
@@ -335,6 +329,10 @@ public class Robot {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
+        telemetry.addData("Cell camera", cellVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; Cell tracking is off");
+        telemetry.addData("Pollen camera", gameVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; visual Pollen tracking is off");
         Cell targetCell = cellMap.bestOurCell(follower.pose());
         telemetry.addData("aim (hold Y)", targetCell == null ? "no Cell" :
                 targetCell.alliance + " " + targetCell.fieldSide + " " + targetCell.state());
@@ -345,6 +343,9 @@ public class Robot {
                 ? "Cell not tracked; hold Y aims between our Cell estimates" : "none");
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
+        String missingMotors = mechanism.missingMotorNames();
+        telemetry.addData(missingMotors.isEmpty() ? "mechanism motors" : "MECHANISM WARNING",
+                missingMotors.isEmpty() ? "all found" : "missing: " + missingMotors);
         if (selectedStartPose() != null) {
             telemetry.addData("start pose (dpad)", selectedStartPose());
         }
@@ -353,10 +354,7 @@ public class Robot {
 
     public void updateTelemetry(double matchTimeSeconds) {
         if (!endgameAlerted && matchTimeSeconds >= 90) {
-            // A few short blips reads as a distinct "something changed"
-            // alert better than one continuous buzz - both rumble(ms) and
-            // rumbleBlips(count) are real Gamepad methods; this just picks
-            // the more informative one for this specific alert.
+            // Short blips make the endgame warning easy to notice.
             gamepad1.rumbleBlips(3);
             gamepad2.rumbleBlips(3);
             endgameAlerted = true;
@@ -370,7 +368,7 @@ public class Robot {
     // ---- Step helpers (simple linear autonomous / teaching sequences) -----
     //
     // These build on the real ScoringMechanism state machine now, not raw
-    // motor power - see project brief section 29: a Step should represent
+    // motor power - see design notes: a Step should represent
     // an executable action, and dynamic autonomous (AutonomousController)
     // is what actually needs to interrupt/rebuild a sequence, not this
     // fixed-Sequence path. These remain useful for LeaveAndPark and the

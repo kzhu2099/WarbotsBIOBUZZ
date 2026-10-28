@@ -1,26 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-/**
- * Every hardware-map device name the robot uses, in one place. This is the
- * ONE file that should need editing at a meet to point the code at renamed
- * devices - nothing else in the project should contain a hardware-map name
- * as a string literal.
- *
- * CONFIRMED (not a guess): this robot has exactly eight motors and no
- * mechanism sensors at all - four drivetrain, plus intake, transfer, and
- * two outtake motors (both fire together for every scoring cycle). There
- * is no beam-break, color sensor, distance sensor, or limit switch on the
- * mechanism. ScoringMechanism is written accordingly: ball acquisition and
- * transfer-arrival are timing-based assumptions, not sensor-verified, and
- * that is a real, permanent property of this robot - not a placeholder
- * waiting on hardware that's still TODO.
- *
- * (Drivetrain motor names and directions live in {@code pedro.Constants}
- * instead, because PedroPathing's Mecanum/MecanumConfig owns that wiring
- * directly - duplicating the same four names here would just create a
- * second place they could drift out of sync. Constants.java pulls its
- * names from here so there is still only one place to edit.)
- */
+/** The hardware-map names used by the robot code. */
 public final class HardwareConfig {
 
     private HardwareConfig() {}

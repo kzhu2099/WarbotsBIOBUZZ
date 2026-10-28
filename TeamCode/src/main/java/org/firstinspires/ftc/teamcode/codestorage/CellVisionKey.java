@@ -21,25 +21,8 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import java.util.ArrayList;
 import java.util.List;
 
-// ANSWER KEY for practice/CellVisionPractice.java. Replaces the previous
-// TipperReaderKey.java.
-//
-// AUDIT NOTE (revised): an earlier pass of this project's production
-// CellVision claimed AprilTagSingleDetection/AprilTagClusterDetection were
-// fabricated types that "do not exist in the real FTC SDK." That claim was
-// WRONG, and has since been corrected - checked directly against this
-// SDK's own current sample code (ConceptAprilTag.java,
-// ConceptAprilTagLocalization.java, ConceptAprilTagEasy.java): both types
-// are real. AprilTagDetection is a base type carrying .ftcPose and
-// .robotPose; AprilTagSingleDetection (one physical tag: .id, .metadata,
-// .center) and AprilTagClusterDetection (several tags on one rigid object:
-// .metadata.name, .percentClusterFound) are its real subtypes. This key
-// now follows that real, sample-verified pattern - see CellVision's
-// Javadoc in the main package for the full explanation.
-//
-// Also newly added: setCameraPose(...), which is what makes
-// detection.robotPose available - the SDK's own directly-computed
-// field-relative robot pose. Camera mount numbers live in RobotGeometry.
+// Reference implementation for the Cell vision practice exercise.
+// Uses the FTC SDK's single-tag and cluster detection types.
 
 public class CellVisionKey extends CameraKey {
 
@@ -63,8 +46,7 @@ public class CellVisionKey extends CameraKey {
     }
 
     private static YawPitchRollAngles cameraOrientation() {
-        // yaw=pitch=roll=0 means "camera pointing straight up" per the FTC
-        // SDK's own convention - exactly this camera's real orientation.
+        // In the FTC SDK's coordinate system, zero pitch and roll point straight up.
         return new YawPitchRollAngles(AngleUnit.DEGREES,
                 RobotGeometry.CELL_CAMERA_YAW_DEGREES,
                 RobotGeometry.CELL_CAMERA_PITCH_DEGREES,
@@ -93,9 +75,7 @@ public class CellVisionKey extends CameraKey {
                         confidence, nowSeconds, sdkRobotPose));
 
             } else if (detection instanceof AprilTagClusterDetection) {
-                // See CellVision's Javadoc: unverified whether this field's
-                // cell tags are actually registered as SDK-level clusters.
-                // If they are not, this branch simply never fires.
+                // Check on the robot whether the Cell tags arrive as a cluster.
                 AprilTagClusterDetection cluster = (AprilTagClusterDetection) detection;
                 double confidence = cluster.percentClusterFound / 100.0;
 
