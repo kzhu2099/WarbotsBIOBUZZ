@@ -3,42 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 
-/**
- * The ONE authoritative source of "where is the robot right now" for the
- * whole project. Per the project brief: GameVision, Robot, the planner,
- * and Auto must not each keep their own separate idea of robot pose - they
- * all read through this instead. Under the hood this is still just Pedro's
- * Follower/localizer (odometry), with an optional AprilTag-based
- * correction layer on top.
- *
- * THAT CORRECTION LAYER IS OPTIONAL AND TOGGLEABLE ON PURPOSE - see
- * CorrectionMode. Continuously blending a vision-based reading into good
- * odometry every single time a tag is seen isn't automatically a win: this
- * robot's Pinpoint odometry is accurate and drifts very little over a
- * ~30-second autonomous period, while a single AprilTag reading's own
- * distance/angle estimate has its own real error, especially at range or a
- * steep viewing angle. Fighting two imperfect sources continuously can
- * make things WORSE than trusting one good one. The default here instead
- * matches a pattern real teams use: treat odometry as authoritative during
- * a run, and only use vision to explicitly RE-establish position when you
- * have reason to think odometry might be wrong (right after a robot
- * reset, or on driver request) - see RESYNC_ONLY and requestResync().
- *
- * CURRENT REAL LIMITATION: as of this pass, every confirmed real AprilTag
- * ID on this field (see FieldTagLibrary) is a CELL_TAG, not a
- * NAVIGATION_TAG - no dedicated, separate localization-only tags have been
- * identified for BIOBUZZ. That means this correction path currently has
- * nothing to fire against in practice, regardless of which mode is
- * selected, until either (a) BIOBUZZ turns out to have separate navigation
- * tags elsewhere that haven't been catalogued yet, or (b) this project is
- * deliberately extended to also feed CELL_TAG sightings into this same
- * correction (which is a real, defensible option - cell tags ARE fixed,
- * known-position field references too - but is NOT wired up automatically
- * here, because FieldTagLibrary's cell tag field poses are still
- * placeholders, not measured values, and correcting robot pose from a
- * wrong "known" position would actively make things worse, not better).
- * Wiring is left in place and ready for either case.
- */
+/** Keeps the robot's current pose from PedroPathing, with optional AprilTag corrections. */
 public class Localization {
 
     public enum CorrectionMode {
@@ -60,7 +25,7 @@ public class Localization {
      *  more than this, something is wrong (bad tag read, or the odometry
      *  has drifted badly) - don't blindly snap to it in CONTINUOUS mode.
      *  Flag it instead so AutonomousController can fall back to
-     *  conservative behavior (see project brief section 25). Does not
+     *  conservative behavior (see design notes). Does not
      *  apply to an explicit resync - see requestResync(). */
     private static final double MAX_TRUSTED_CORRECTION_INCHES = 12.0;
 

@@ -1,6 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-/** AUDITED, UNCHANGED - see Step.java's header for why. */
+/** Runs a fixed list of autonomous steps in order. */
 public class Sequence {
 
     private final Step[] steps;

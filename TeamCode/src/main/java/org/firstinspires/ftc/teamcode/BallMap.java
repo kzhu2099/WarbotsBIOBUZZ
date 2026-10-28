@@ -7,28 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * The robot's memory of every ball it has ever seen this match - the
- * "memory map" (formerly MemoryPalace). This is one of the most important
- * pieces of the autonomous system: it lets the robot reason about balls
- * that are not currently in the camera frame, reconcile new sightings with
- * old ones instead of duplicating them, and notice when an expected ball
- * has actually disappeared (collected by an opponent, knocked away, etc.)
- * so the planner can replan instead of driving to an empty spot forever.
- *
- * Reconciliation rule, per ball type:
- *   - A fresh detection within MATCH_DISTANCE_INCHES of an existing ball of
- *     the same type is treated as the same physical ball: its position,
- *     owner, and confidence are refreshed instead of creating a duplicate.
- *   - A fresh detection that doesn't match anything existing becomes a new
- *     Ball.
- *   - Any remembered ball that was NOT matched this cycle, but that
- *     *should* have been visible (it falls inside the camera's current
- *     field of view), is aged: its state moves toward MISSING the longer
- *     it goes unseen while supposedly in view. A ball that goes unseen
- *     while it is NOT in view (robot is looking somewhere else, or too far
- *     away) is left alone - that's expected, not evidence it's gone.
- */
+/** Keeps track of game pieces seen during the match and reconciles new detections with old ones. */
 public class BallMap {
 
     /** How close a fresh detection has to be to an existing ball (of the

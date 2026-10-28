@@ -9,15 +9,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-/**
- * The manual drive-and-shoot fallback. It only needs the drive motors and
- * whichever scoring motors are actually installed. It deliberately does
- * not initialize cameras, odometry, or Foresight.
- *
- * Driving is robot-centric; the driver aims by rotating the chassis. Intake
- * and transfer are timed, so the mechanism status is an estimate rather than
- * proof that a game piece reached the shooter.
- */
+/** Manual drive and scoring controls for use without cameras, odometry, or Foresight. */
 public class ManualDriveAndShoot {
 
     private final Telemetry telemetry;

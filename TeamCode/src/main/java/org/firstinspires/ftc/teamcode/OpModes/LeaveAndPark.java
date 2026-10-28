@@ -10,15 +10,7 @@ import org.firstinspires.ftc.teamcode.RobotGeometry;
 import org.firstinspires.ftc.teamcode.Sequence;
 import org.firstinspires.ftc.teamcode.Step;
 
-/**
- * The simplest possible useful autonomous: leave the starting tile and
- * park. No vision, no scoring - just guaranteed autonomous points and a
- * predictable parking spot, for when nothing else is trusted yet (or as a
- * safe emergency backup OpMode at an event). Updated to the new Robot API
- * (RobotGeometry instead of the old Robot.HALF_LENGTH constant,
- * updateWorldModel() instead of updateFollower()) but otherwise unchanged
- * in spirit from the original.
- */
+/** undefined */
 @Autonomous(name = "Leave and Park")
 public class LeaveAndPark extends OpMode {
 

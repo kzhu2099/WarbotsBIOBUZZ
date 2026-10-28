@@ -17,35 +17,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Camera 2: the upward-facing Arducam, used purely for AprilTag detection -
- * both Cell tags and (if any exist on this field - see
- * FieldTagLibrary) dedicated navigation tags.
- *
- * CORRECTED FROM AN EARLIER PASS OF THIS PROJECT: an earlier version of
- * this class treated AprilTagDetection as a single flat type with .id
- * directly on it, and asserted that a separate AprilTagSingleDetection /
- * AprilTagClusterDetection split "does not exist in the real FTC SDK."
- * That was wrong - checked directly against this SDK's own current sample
- * code (ConceptAprilTag.java, ConceptAprilTagLocalization.java,
- * ConceptAprilTagEasy.java, Sept 2026 checkout), AprilTagDetection is a
- * base type with .ftcPose and .robotPose on it, and AprilTagSingleDetection
- * (one physical tag - carries .id, .metadata, .center) and
- * AprilTagClusterDetection (several tags on one rigid object, recognized
- * together - carries .metadata.name, .percentClusterFound) are both real
- * subtypes. This class now follows that real, sample-verified pattern.
- *
- * Also newly added: setCameraPose(...), which is what makes
- * detection.robotPose available at all - the SDK's own directly-computed
- * field-relative robot pose, more trustworthy than this project's own 2D
- * estimateFieldPose()/correction math (see AprilTagObservation and
- * Localization). Camera mount numbers live in RobotGeometry.
- *
- * Units: explicitly locked to inches/degrees via setOutputUnits() rather
- * than trusting whatever the SDK's default happens to be, since this
- * project's field-name conventions (distanceInches, bearingDegrees, ...)
- * assume that unit choice everywhere else.
- */
+/** Reads AprilTags from the upward-facing camera and turns valid detections into observations for the robot. */
 public class CellVision extends Camera {
 
     private final AprilTagProcessor tagProcessor;

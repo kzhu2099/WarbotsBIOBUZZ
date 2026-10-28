@@ -2,8 +2,8 @@ package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
 
-// All starts touch a perimeter wall, stay outside the Loading Zones, and face into the field.
-// NEAR_CORNER is nearest our alliance zone; FAR_CORNER is the opposite corner.
+// Each start is on a perimeter wall and faces into the field.
+// NEAR_CORNER is nearest our Loading Zone; FAR_CORNER is the opposite corner.
 public enum StartPosition {
     SIDE_WALL,
     NEAR_CORNER,
