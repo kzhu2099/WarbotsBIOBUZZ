@@ -14,37 +14,19 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
-/**
- * Everything about the physical robot, and - critically - the whole
- * "sensing" side of the closed loop this project is built around:
- *
- *   cameras observe -> world model updates -> planner decides ->
- *   PedroPathing executes -> mechanisms change the world -> sensors
- *   observe again -> planner updates the route
- *
- * Robot owns "cameras observe -> world model updates" AND "mechanisms
- * change the world -> sensors observe again" (both halves happen inside
- * {@link #updateWorldModel}, which both AutonomousController and TeleOp
- * call once per loop). {@link AutonomousController} owns the "planner
- * decides -> PedroPathing executes" half. Localization, BallMap, HiveMap,
- * and Inventory are each created exactly ONCE, here, and handed out by
- * reference (through {@link #worldState}) - nothing else in the project
- * keeps its own copy of any of them, which is what actually closes the
- * loop instead of leaving three components with three slightly different
- * ideas of reality.
- */
+/** Shared access to the drivetrain, localization, vision, Cell/ball tracking, inventory, and mechanisms. */
 public class Robot {
 
     public final Follower follower;
     public final Localization localization;
 
     public final GameVision gameVision;
-    public final HiveVision hiveVision;
+    public final CellVision cellVision;
     public final ScoringMechanism mechanism;
 
     public final Inventory inventory;
     public final BallMap ballMap;
-    public final HiveMap hiveMap;
+    public final CellMap cellMap;
 
     private final Telemetry telemetry;
     private final Gamepad gamepad1;
@@ -53,18 +35,15 @@ public class Robot {
     public boolean redAlliance;
     private boolean fieldCentric = true;
     private boolean endgameAlerted = false;
+    private boolean cellAimHeld = false;
+    private double cellAimHoldX;
+    private double cellAimHoldY;
+    private boolean cellAimFallbackActive;
 
     private String[] startPoseOptions = new String[0];
     private int startPoseIndex = 0;
 
-    /** The most recent "now" passed to updateWorldModel() - the single
-     *  clock every subsystem's timing (mechanism timeouts included) is
-     *  measured against. Step helpers below read this instead of taking
-     *  their own timestamp parameter, specifically so a Step's start()
-     *  (which can run an arbitrary number of loop ticks after the Step
-     *  object was constructed) always uses the SAME clock as
-     *  updateWorldModel/ScoringMechanism - mixing clocks here previously
-     *  would have made every mechanism timeout meaningless. */
+    /** Clock shared by mechanism timers and the OpMode loop. */
     private double lastKnownNowSeconds = 0;
 
     public Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gamepad1, Gamepad gamepad2, boolean redAlliance) {
@@ -75,15 +54,17 @@ public class Robot {
 
         follower = Constants.create(hardwareMap);
         localization = new Localization(follower);
+        // After a reset, use the next trusted navigation tag to correct the pose if one is available.
+        localization.requestResync();
 
         gameVision = new GameVision(hardwareMap);
-        hiveVision = new HiveVision(hardwareMap);
+        cellVision = new CellVision(hardwareMap);
         mechanism = new ScoringMechanism(hardwareMap);
 
         inventory = new Inventory();
         ballMap = new BallMap();
-        hiveMap = new HiveMap();
-        hiveMap.selectOurHive(redAlliance);
+        cellMap = new CellMap();
+        cellMap.selectOurAlliance(redAlliance);
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -107,30 +88,27 @@ public class Robot {
         AutoToTeleOp.save(follower.pose(), redAlliance, inventory.pollenCount(), inventory.nectarCount());
     }
 
-    // ---- The closed loop: PERCEIVE ---------------------------------------
+    // Update the robot's view of the field
 
-    /**
-     * Pulls in everything the cameras and mechanism sensors currently
-     * know and folds it into the one shared world model. Call this
-     * exactly once per OpMode loop() iteration, before making any
-     * decisions that tick - AutonomousController does this at the start
-     * of every update(), and TeleOp does the same in its loop().
-     */
+    /** Updates localization, vision tracking, inventory, and mechanism state. */
     public void updateWorldModel(double nowSeconds) {
         this.lastKnownNowSeconds = nowSeconds;
         follower.update();
         localization.update(nowSeconds);
 
-        if (hiveVision.isAvailable()) {
-            for (AprilTagObservation observation : hiveVision.observations(nowSeconds)) {
-                if (observation.role == AprilTagRole.HIVE_TAG) {
-                    hiveMap.updateFromTag(observation, localization.pose(), nowSeconds);
+        if (cellVision.isAvailable()) {
+            for (AprilTagObservation observation : cellVision.observations(nowSeconds)) {
+                if (observation.role == AprilTagRole.CELL_TAG) {
+                    cellMap.updateFromTag(observation, localization.pose(), nowSeconds);
                 } else if (observation.role == AprilTagRole.NAVIGATION_TAG) {
-                    localization.applyAprilTagCorrection(observation, nowSeconds);
+                    Pose knownTagFieldPose = FieldTagLibrary.knownFieldPoseOf(observation.tagId);
+                    if (knownTagFieldPose != null) {
+                        localization.applyAprilTagCorrection(observation, knownTagFieldPose, nowSeconds);
+                    }
                 }
             }
         }
-        hiveMap.tick(nowSeconds);
+        cellMap.tick(nowSeconds);
 
         if (gameVision.isAvailable()) {
             ballMap.observe(gameVision.detections(localization.pose(), nowSeconds, redAlliance),
@@ -138,11 +116,7 @@ public class Robot {
         }
 
         mechanism.update(nowSeconds);
-        // "mechanisms change the world -> sensors observe again -> the
-        // world model reflects it": inventory only ever changes here,
-        // from a mechanism event that was actually verified (or, lacking
-        // a sensor, explicitly and visibly assumed - see ScoringMechanism)
-        // - never from an assumption made anywhere else in the project.
+        // Inventory follows the mechanism state machine. Transfers are timed, not sensor-confirmed.
         if (mechanism.justReachedReadyToScore()) {
             inventory.acquire(mechanism.lastTransferredType());
         }
@@ -153,16 +127,16 @@ public class Robot {
 
     /** A read-only view of the current world model for the planner/controller. */
     public WorldState worldState(double timeRemainingSeconds, double nowSeconds) {
-        return new WorldState(localization, inventory, ballMap, hiveMap,
-                gameVision.isAvailable(), hiveVision.isAvailable(), timeRemainingSeconds, nowSeconds);
+        return new WorldState(localization, inventory, ballMap, cellMap,
+                gameVision.isAvailable(), cellVision.isAvailable(), timeRemainingSeconds, nowSeconds);
     }
 
-    // ---- Alliance / starting configuration -------------------------------
+    // Alliance and starting pose
 
     public void toggleAlliance() {
         if (gamepad1.xWasPressed()) {
             redAlliance = !redAlliance;
-            hiveMap.selectOurHive(redAlliance);
+            cellMap.selectOurAlliance(redAlliance);
         }
     }
 
@@ -185,7 +159,7 @@ public class Robot {
         return startPoseOptions.length == 0 ? null : startPoseOptions[startPoseIndex];
     }
 
-    // ---- TeleOp driving ---------------------------------------------------
+    // TeleOp driving
 
     public void teleOpDrive() {
         if (gamepad1.bWasPressed()) {
@@ -193,9 +167,35 @@ public class Robot {
         }
 
         if (gamepad1.y) {
-            aimAtOwnHive();
+            Pose pose = follower.pose();
+            if (!cellAimHeld) {
+                cellAimHoldX = pose.x();
+                cellAimHoldY = pose.y();
+                cellAimHeld = true;
+            }
+
+            Cell targetCell = cellMap.bestOurCell(pose);
+            double targetX;
+            double targetY;
+            cellAimFallbackActive = targetCell == null
+                    || targetCell.state() == CellState.UNKNOWN
+                    || targetCell.state() == CellState.STALE;
+
+            if (cellAimFallbackActive) {
+                java.util.List<Cell> cells = cellMap.ourCells();
+                targetX = (cells.get(0).fieldPose().x() + cells.get(1).fieldPose().x()) / 2.0;
+                targetY = (cells.get(0).fieldPose().y() + cells.get(1).fieldPose().y()) / 2.0;
+            } else {
+                targetX = targetCell.fieldPose().x();
+                targetY = targetCell.fieldPose().y();
+            }
+
+            double heading = Math.atan2(targetY - pose.y(), targetX - pose.x());
+            follower.hold(new Pose(cellAimHoldX, cellAimHoldY, heading));
             return;
         }
+        cellAimHeld = false;
+        cellAimFallbackActive = false;
 
         if (gamepad1.left_bumper && gameVision.seesPollen()) {
             trackPollen();
@@ -213,7 +213,8 @@ public class Robot {
             powers = ManualDrive.fieldCentric(powers, follower.pose().heading(), allianceOffset);
         }
 
-        follower.manual(powers);
+        // driveOrHold needs the tuned Foresight controller; diagnostic OpModes use manual().
+        ManualDrive.driveOrHold(follower, powers);
     }
 
     public void trackPollen() {
@@ -222,7 +223,7 @@ public class Robot {
         follower.manual(new DrivePowers(forward, 0, -offset * 0.5));
     }
 
-    // ---- Aiming / navigation helpers ---------------------------------------
+    // Aiming and navigation
 
     public double headingTo(double x, double y) {
         Pose pose = follower.pose();
@@ -239,14 +240,13 @@ public class Robot {
         aimAt(target.x(), target.y());
     }
 
-    /** Aims using the real, computed hive target - not a Points lookup and
-     *  not a hardcoded turnTo(). See Hive.computeTarget(). */
-    public void aimAtOwnHive() {
-        Hive hive = hiveMap.activeHive();
-        if (hive == null) return;
-        HiveTarget target = hive.computeTarget();
-        Pose pose = follower.pose();
-        follower.hold(new Pose(pose.x(), pose.y(), target.aimHeadingRadians));
+    public void aimAtCell(Cell cell) {
+        if (cell == null) return;
+        aimAt(cell.fieldPose().x(), cell.fieldPose().y());
+    }
+
+    public void aimAtOwnCell() {
+        aimAtCell(cellMap.bestOurCell(follower.pose()));
     }
 
     public Path pathTo(Pose target) {
@@ -316,21 +316,36 @@ public class Robot {
         setStartPose(Points.get(name));
     }
 
-    // ---- Lifecycle ----------------------------------------------------------
+    // Stop and telemetry
 
     public void stop() {
         follower.stop();
         mechanism.stopAll();
         gameVision.close();
-        hiveVision.close();
+        cellVision.close();
     }
 
     public void updateTelemetry() {
         telemetry.addData("pose", follower.pose());
         telemetry.addData("field centric (b)", fieldCentric);
         telemetry.addData("alliance (x)", redAlliance ? "RED" : "BLUE");
+        telemetry.addData("Cell camera", cellVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; Cell tracking is off");
+        telemetry.addData("Pollen camera", gameVision.isAvailable()
+                ? "ready" : "WARNING: unavailable; visual Pollen tracking is off");
+        Cell targetCell = cellMap.bestOurCell(follower.pose());
+        telemetry.addData("aim (hold Y)", targetCell == null ? "no Cell" :
+                targetCell.alliance + " " + targetCell.fieldSide + " " + targetCell.state());
+        boolean targetUntracked = targetCell == null
+                || targetCell.state() == CellState.UNKNOWN
+                || targetCell.state() == CellState.STALE;
+        telemetry.addData("AIM WARNING", targetUntracked
+                ? "Cell not tracked; hold Y aims between our Cell estimates" : "none");
         telemetry.addData("inventory", inventory);
         telemetry.addData("mechanism", mechanism.state());
+        String missingMotors = mechanism.missingMotorNames();
+        telemetry.addData(missingMotors.isEmpty() ? "mechanism motors" : "MECHANISM WARNING",
+                missingMotors.isEmpty() ? "all found" : "missing: " + missingMotors);
         if (selectedStartPose() != null) {
             telemetry.addData("start pose (dpad)", selectedStartPose());
         }
@@ -339,10 +354,7 @@ public class Robot {
 
     public void updateTelemetry(double matchTimeSeconds) {
         if (!endgameAlerted && matchTimeSeconds >= 90) {
-            // A few short blips reads as a distinct "something changed"
-            // alert better than one continuous buzz - both rumble(ms) and
-            // rumbleBlips(count) are real Gamepad methods; this just picks
-            // the more informative one for this specific alert.
+            // Short blips make the endgame warning easy to notice.
             gamepad1.rumbleBlips(3);
             gamepad2.rumbleBlips(3);
             endgameAlerted = true;
@@ -356,7 +368,7 @@ public class Robot {
     // ---- Step helpers (simple linear autonomous / teaching sequences) -----
     //
     // These build on the real ScoringMechanism state machine now, not raw
-    // motor power - see project brief section 29: a Step should represent
+    // motor power - see design notes: a Step should represent
     // an executable action, and dynamic autonomous (AutonomousController)
     // is what actually needs to interrupt/rebuild a sequence, not this
     // fixed-Sequence path. These remain useful for LeaveAndPark and the
@@ -398,8 +410,8 @@ public class Robot {
         };
     }
 
-    public Step stepAimAtOwnHive(double seconds) {
-        return Step.timed(seconds, this::aimAtOwnHive);
+    public Step stepAimAtOwnCell(double seconds) {
+        return Step.timed(seconds, this::aimAtOwnCell);
     }
 
     /**

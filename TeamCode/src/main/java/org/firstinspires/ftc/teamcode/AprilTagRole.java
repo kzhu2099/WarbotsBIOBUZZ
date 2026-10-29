@@ -6,8 +6,8 @@ package org.firstinspires.ftc.teamcode;
  * means" requirement.
  */
 public enum AprilTagRole {
-    /** Identifies a hive (its alliance and field position/orientation). */
-    HIVE_TAG,
+    /** Identifies a Cell (its alliance and field position/orientation). */
+    CELL_TAG,
 
     /** A fixed field tag usable to correct/validate robot localization. */
     NAVIGATION_TAG,

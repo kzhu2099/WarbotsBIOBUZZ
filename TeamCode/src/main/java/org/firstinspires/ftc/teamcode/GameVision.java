@@ -14,29 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Camera 1: the floor-facing webcam, used to find Pollen and Nectar on the
- * field. This is the REAL, working implementation - it is what
- * {@link Robot} actually uses. It intentionally detects THREE things, not
- * two, because "our balls vs. opponent balls" (project brief section 6) is
- * exactly a color question here: Pollen (yellow) is neutral/usable by
- * anyone; our-alliance-colored Nectar is ours; the other alliance's colored
- * Nectar is the opponent's and must never be treated as a target.
- *
- * Produces structured {@link BallDetection}s (type, owner, camera-relative
- * position, bearing/distance estimate, confidence, timestamp) rather than
- * a bare "boolean seesBall()" - see project brief section 5.
- *
- * IMPORTANT AUDIT FIX: an earlier version of this class baked "which color
- * is ours" into the constructor. Robot.toggleAlliance() can flip alliance
- * at any time (e.g. during init), which would have silently left this
- * class pointed at the wrong color - "our" nectar and the opponent's would
- * swap without anything telling you. This version tracks a plain RED
- * locator and a plain BLUE locator, and only decides which one is "ours"
- * at query time, from whatever the current alliance actually is. That
- * makes toggling alliance safe at any point, including after this class
- * is constructed.
- */
+/** Uses the floor-facing camera to detect Pollen and alliance-colored Nectar. */
 public class GameVision extends Camera {
 
     private static final int FRAME_WIDTH = 320;
@@ -52,7 +30,6 @@ public class GameVision extends Camera {
      *  point (forward +, lateral + = right), inches. TODO: VERIFY. */
     private static final double CAMERA_FORWARD_OFFSET_INCHES = 6.0;
     private static final double CAMERA_LATERAL_OFFSET_INCHES = 0.0;
-
     private static final double MIN_BLOB_AREA = 50;
     private static final double MAX_BLOB_AREA = 20000;
 

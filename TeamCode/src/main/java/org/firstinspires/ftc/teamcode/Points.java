@@ -6,14 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * AUDITED, UNCHANGED: a generic named-pose registry, useful for whatever
- * field points a team wants to name (non-hive, non-ball - e.g. a submersible
- * entrance, a specific lineup spot). Hive-specific positioning now goes
- * through Hive/HiveMap/FieldTagLibrary instead of this, since a hive's pose
- * is something the robot actively tracks and computes targets from, not a
- * single static named point.
- */
+/** Stores named field poses that are not tracked as Cells or game pieces. */
 public class Points {
 
     public static final double FIELD_SIZE = 144;

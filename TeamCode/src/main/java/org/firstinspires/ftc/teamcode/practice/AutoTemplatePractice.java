@@ -7,9 +7,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
-// AUDITED, UNCHANGED: a from-scratch, no-Robot-class exercise (raw
-// Follower only), unrelated to the Jar/Tipper/MemoryPalace terminology
-// that needed fixing elsewhere in this project, so it needed no rewrite.
+// Simple practice OpMode using Pedro's Follower directly.
 @Disabled
 @Autonomous(name = "Auto Practice")
 public class AutoTemplatePractice extends LinearOpMode {

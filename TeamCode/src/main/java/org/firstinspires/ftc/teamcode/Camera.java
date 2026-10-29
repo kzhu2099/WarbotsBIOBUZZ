@@ -8,15 +8,7 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.VisionProcessor;
 
-/**
- * Shared by GameVision and HiveVision: opens one webcam, attaches whatever
- * processors the subclass needs, and never crashes the robot if that
- * webcam isn't plugged in / configured yet. This is the real, working
- * implementation - production code (Robot -> GameVision/HiveVision) uses
- * this directly. The fill-in-the-blank teaching version of this same idea
- * lives separately in practice/CameraPractice.java so new members can
- * build it themselves without touching (or blocking) the real robot.
- */
+/** Opens a webcam and attaches the requested vision processors. If the camera is unavailable, vision stays disabled instead of stopping the OpMode. */
 public class Camera {
 
     private final VisionPortal portal;
@@ -61,7 +53,7 @@ public class Camera {
      * can write e.g. "ColorBlobLocatorProcessor x = processor(0);" with no
      * explicit cast.
      */
-    @SuppressWarnings("unchecked")
+
     protected <T extends VisionProcessor> T processor(int index) {
         if (processors == null || index < 0 || index >= processors.length) return null;
         return (T) processors[index];

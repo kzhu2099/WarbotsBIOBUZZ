@@ -9,33 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.NullLocalizer;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-/**
- * The absolute minimum useful TeleOp: joystick -> mecanum wheels, through
- * PedroPathing's real drivetrain code (the same Mecanum/DrivePowers
- * classes the full robot uses), and nothing else.
- *
- * Use this one instead of the full {@code TeleOp} OpMode when:
- *   - odometry pods aren't wired up / configured yet (the full Robot class
- *     requires a working PinpointLocalizer to even construct - see
- *     pedro.Constants.create()),
- *   - PedroPathing's Foresight hasn't been tuned yet (also required by
- *     Constants.create() - it throws on purpose rather than guessing),
- *   - intake/transfer/outtake motors aren't installed/wired yet, or
- *   - a camera isn't mounted yet.
- *
- * This still goes through PedroPathing (per the ask: "only uses
- * PedroPathing") rather than hand-rolling separate mecanum joystick math,
- * so driving behaves identically to the full robot once the rest of the
- * hardware comes online - there is exactly one place mecanum power
- * mixing happens in this whole project, not two implementations that can
- * quietly drift apart.
- *
- * WHAT THIS CANNOT DO: no field-centric driving (that needs a real
- * heading source - NullLocalizer doesn't have one), no autonomous, no
- * aiming, no telemetry about robot position. It drives the chassis and
- * nothing more. Move up to the full TeleOp OpMode once odometry,
- * Foresight tuning, and the mechanisms are ready.
- */
+/** undefined */
 @TeleOp(name = "Drive Only TeleOp")
 public class DriveOnlyTeleOp extends OpMode {
 

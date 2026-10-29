@@ -1,47 +1,25 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.math.Pose;
+import com.pedropathing.utils.Angle;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
-/**
- * The real dynamic autonomous system. This is where the closed loop the
- * project is built around actually lives, once per call to update():
- *
- *   1. PERCEIVE - robot.updateWorldModel() folds in fresh camera/sensor
- *      data (cameras observe -> world model updates).
- *   2. DECIDE - runState() asks AutonomousPlanner what to do given the
- *      now-current WorldState, and checks whether anything that
- *      invalidates the current plan happened (planner makes a decision /
- *      updates the route).
- *   3. ACT - the chosen state commands the Follower and/or ScoringMechanism
- *      (PedroPathing executes; mechanisms change the world).
- *
- * Then the OpMode calls update() again next loop, step 1 happens again,
- * and it picks up whatever step 3 actually caused - including things NOT
- * going according to plan (a ball wasn't where expected, intake failed,
- * the hive tag reappeared somewhere slightly different). That is what
- * makes this "dynamic" rather than a fixed script: nothing about the
- * sequence of states below is precomputed before the match starts.
- *
- * See AutoState for why the state list here is a condensed version of the
- * project brief's suggested state list, and why that's a deliberate,
- * documented decision rather than a missed requirement.
- */
+import java.util.List;
+
+/** Controls autonomous state transitions using the latest pose, Cell tags, and mechanism state. */
 public class AutonomousController {
 
-    // TODO: VERIFY against the real autonomous period length for the event.
     private static final double AUTONOMOUS_PERIOD_SECONDS = 30.0;
 
-    // TODO: TUNE every constant below against real testing - these are
-    // starting placeholders, not measured values.
+    // Tune these after testing on the actual robot and field.
     private static final double SCAN_DURATION_SECONDS = 0.75;
     private static final double ESTIMATED_COLLECT_SECONDS_PER_BALL = 3.0;
     private static final double ESTIMATED_SCORE_SECONDS = 4.0;
     private static final double ESTIMATED_PARK_SECONDS = 3.0;
     private static final double SAFE_RESERVE_SECONDS = 1.5;
     private static final double DRIVE_TIMEOUT_SECONDS = 5.0;
-    private static final double HIVE_DRIVE_TIMEOUT_SECONDS = 6.0;
+    private static final double CELL_DRIVE_TIMEOUT_SECONDS = 6.0;
     private static final double AIM_TOLERANCE_RADIANS = Math.toRadians(3);
     private static final double AIM_TIMEOUT_SECONDS = 2.0;
     private static final double SCORE_TIMEOUT_SECONDS = 4.0;
@@ -58,11 +36,16 @@ public class AutonomousController {
     private AutonomousPlanner.Route currentRoute = AutonomousPlanner.Route.EMPTY;
     private int currentIndex = 0;
     private Ball currentTargetBall;
-    private Hive committedHive;
-    private HiveTarget currentHiveTarget;
+    private Cell committedCell;
+    private CellTarget currentCellTarget;
+    private boolean atScoringPose;
 
     private ReplanReason lastReplanReason = ReplanReason.NONE;
     private WorldState lastWorldState;
+    private boolean parkingToZone;
+    private boolean retriedParkingRoute;
+    private List<Pose> parkingRoute = java.util.Collections.emptyList();
+    private int parkingWaypointIndex;
 
     public AutonomousController(Robot robot, StartPosition startPosition) {
         this.robot = robot;
@@ -75,24 +58,29 @@ public class AutonomousController {
             matchStartSeconds = nowSeconds;
         }
 
-        // 1. PERCEIVE.
         robot.updateWorldModel(nowSeconds);
+
+        if (nowSeconds - matchStartSeconds >= BioBuzzAutoConfig.AUTO_SAFETY_CUTOFF_SECONDS
+                && state != AutoState.FINISHED && state != AutoState.EMERGENCY_STOP) {
+            robot.follower.stop();
+            robot.mechanism.setManualOverride(true, nowSeconds);
+            enter(AutoState.FINISHED, nowSeconds);
+            return;
+        }
 
         double timeRemaining = AUTONOMOUS_PERIOD_SECONDS - (nowSeconds - matchStartSeconds);
         WorldState world = robot.worldState(timeRemaining, nowSeconds);
         lastWorldState = world;
 
         try {
-            // 2. DECIDE + 3. ACT.
+            // Run the active state.
             runState(world, nowSeconds);
         } catch (RuntimeException e) {
-            // Defensive net (project brief section 25): a bug in decision
-            // logic must never leave motors running uncontrolled for the
-            // rest of autonomous.
+            // Stop the drive and mechanism if a state handler fails.
             state = AutoState.EMERGENCY_STOP;
             stateEnteredAtSeconds = nowSeconds;
             robot.follower.stop();
-            robot.mechanism.stopAll();
+            robot.mechanism.setManualOverride(true, nowSeconds);
         }
     }
 
@@ -100,7 +88,7 @@ public class AutonomousController {
         switch (state) {
 
             case INITIALIZE: {
-                committedHive = robot.hiveMap.activeHive();
+                committedCell = planner.resolveScoringCell(world);
                 lastReplanReason = ReplanReason.INITIAL_PLAN;
                 enter(AutoState.SCAN, now);
                 break;
@@ -128,7 +116,7 @@ public class AutonomousController {
                     driveToTarget(currentTargetBall);
                     enter(AutoState.DRIVE_TO_BALL, now);
                 } else if (world.inventory.totalCount() > 0) {
-                    beginDriveToHive(world, now);
+                    beginDriveToCell(world, now);
                 } else {
                     beginPark(world, now);
                 }
@@ -158,10 +146,7 @@ public class AutonomousController {
 
             case VERIFY_ACQUISITION: {
                 if (robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
-                    // Robot.updateWorldModel() already applied
-                    // inventory.acquire(...) the tick this became true -
-                    // here we finish the loop by updating BallMap and
-                    // deciding what's next.
+                    // Update the ball map after the mechanism finishes transfer.
                     robot.ballMap.markCollected(currentTargetBall);
                     advanceAfterAcquisition(world, now);
                 } else {
@@ -176,8 +161,8 @@ public class AutonomousController {
                 break;
             }
 
-            case DRIVE_TO_HIVE: {
-                ReplanReason reason = planner.detectReplanReason(world, null, committedHive);
+            case DRIVE_TO_CELL: {
+                ReplanReason reason = planner.detectReplanReason(world, null, committedCell);
                 if (reason != ReplanReason.NONE) {
                     lastReplanReason = reason;
                     enter(AutoState.PLAN, now);
@@ -185,33 +170,82 @@ public class AutonomousController {
                 }
 
                 boolean arrived = !robot.busy();
-                boolean timedOut = now - stateEnteredAtSeconds >= HIVE_DRIVE_TIMEOUT_SECONDS;
+                boolean timedOut = now - stateEnteredAtSeconds >= CELL_DRIVE_TIMEOUT_SECONDS;
                 if (arrived || timedOut) {
-                    enter(AutoState.AIM_AT_HIVE, now);
+                    enter(AutoState.AIM_AT_CELL, now);
                 }
                 break;
             }
 
-            case AIM_AT_HIVE: {
-                if (currentHiveTarget == null) {
+            case AIM_AT_CELL: {
+                if (currentCellTarget == null) {
                     enter(AutoState.PLAN, now);
                     break;
                 }
 
-                Pose pose = world.robotPose();
-                robot.follower.hold(new Pose(pose.x(), pose.y(), currentHiveTarget.aimHeadingRadians));
+                Cell activeCell = planner.resolveScoringCell(world);
+                if (activeCell == null || activeCell != currentCellTarget.cell) {
+                    lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+                    enter(AutoState.PLAN, now);
+                    break;
+                }
+                if (activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                    stopForUntrustedCell(now);
+                    break;
+                }
 
-                double headingError = angleDifference(pose.heading(), currentHiveTarget.aimHeadingRadians);
+                Pose pose = world.robotPose();
+                robot.follower.hold(new Pose(pose.x(), pose.y(), currentCellTarget.aimHeadingRadians));
+
+                double headingError = Angle.error(pose.heading(), currentCellTarget.aimHeadingRadians);
                 boolean aimed = Math.abs(headingError) <= AIM_TOLERANCE_RADIANS;
                 boolean timedOut = now - stateEnteredAtSeconds >= AIM_TIMEOUT_SECONDS;
-                if (aimed || timedOut) {
+                if (aimed && !atScoringPose) {
+                    currentCellTarget = activeCell.computeTarget(world.robotPose());
+                    robot.followTo(currentCellTarget.scoringPose);
+                    atScoringPose = true;
+                    enter(AutoState.DRIVE_TO_SCORE, now);
+                } else if (aimed) {
                     enter(AutoState.SCORE, now);
+                } else if (timedOut) {
+                    stopForUntrustedCell(now);
+                }
+                break;
+            }
+
+            case DRIVE_TO_SCORE: {
+                ReplanReason reason = planner.detectReplanReason(world, null, committedCell);
+                if (reason != ReplanReason.NONE) {
+                    lastReplanReason = reason;
+                    atScoringPose = false;
+                    enter(AutoState.PLAN, now);
+                    break;
+                }
+
+                Cell activeCell = planner.resolveScoringCell(world);
+                if (activeCell == null || activeCell != committedCell
+                        || activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                    stopForUntrustedCell(now);
+                    break;
+                }
+
+                if (!robot.busy()) {
+                    enter(AutoState.AIM_AT_CELL, now);
+                } else if (now - stateEnteredAtSeconds >= CELL_DRIVE_TIMEOUT_SECONDS) {
+                    robot.follower.stop();
+                    beginPark(world, now);
                 }
                 break;
             }
 
             case SCORE: {
                 if (robot.mechanism.state() == ScoringState.READY_TO_SCORE) {
+                    Cell activeCell = planner.resolveScoringCell(world);
+                    if (activeCell == null || activeCell != committedCell
+                            || activeCell.state() == CellState.UNKNOWN || activeCell.state() == CellState.STALE) {
+                        stopForUntrustedCell(now);
+                        break;
+                    }
                     robot.mechanism.triggerOuttake(now);
                 }
                 if (robot.mechanism.justCompletedScoreCycle()) {
@@ -227,7 +261,7 @@ public class AutonomousController {
                 // Robot.updateWorldModel() already called
                 // inventory.scoreAll() the tick justCompletedScoreCycle()
                 // fired. This robot has no sensor that can confirm a ball
-                // actually landed in the hive (vs. bouncing out) - being
+                // actually landed in the cell (vs. bouncing out) - being
                 // honest about that belongs in telemetry (see telemetry()
                 // below: scoring is reported as "assumed," never as a
                 // verified fact we don't actually have).
@@ -246,9 +280,33 @@ public class AutonomousController {
             }
 
             case PARK: {
+                double timeout = parkingToZone
+                        ? BioBuzzAutoConfig.PARK_TIMEOUT_SECONDS
+                        : BioBuzzAutoConfig.PARK_LANE_TIMEOUT_SECONDS;
+
                 if (!robot.busy()) {
-                    robot.mechanism.stopAll();
-                    enter(AutoState.FINISHED, now);
+                    if (parkingWaypointIndex < parkingRoute.size()) {
+                        robot.followTo(parkingRoute.get(parkingWaypointIndex++));
+                        enter(AutoState.PARK, now);
+                    } else if (!parkingToZone) {
+                        robot.followTo(BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+                        parkingToZone = true;
+                        enter(AutoState.PARK, now);
+                    } else {
+                        robot.mechanism.setManualOverride(true, now);
+                        enter(AutoState.FINISHED, now);
+                    }
+                } else if (now - stateEnteredAtSeconds >= timeout) {
+                    robot.follower.stop();
+                    if (!parkingToZone && !retriedParkingRoute) {
+                        retriedParkingRoute = true;
+                        parkingRoute = BioBuzzAutoConfig.parkingLaneRoute(robot.redAlliance, world.robotPose());
+                        parkingWaypointIndex = 0;
+                        startNextParkLeg(now);
+                    } else {
+                        robot.mechanism.setManualOverride(true, now);
+                        enter(AutoState.FINISHED, now);
+                    }
                 }
                 break;
             }
@@ -265,31 +323,29 @@ public class AutonomousController {
         }
     }
 
-    // ---- One-shot transition actions (each issues its command exactly
-    // once, at the moment of transition, not repeatedly every tick) -----
+    // Path and mechanism commands are issued when a state starts.
 
     private void driveToTarget(Ball ball) {
         robot.follower.follow(robot.pathTo(ball.fieldPose()));
     }
 
-    private void beginDriveToHive(WorldState world, double now) {
-        Hive hive = planner.resolveScoringHive(world);
-        committedHive = hive;
-        if (hive == null) {
-            // No known hive at all - shouldn't happen once alliance is
-            // selected at init, but a real failsafe (project brief section
-            // 25) beats driving somewhere made up.
+    private void beginDriveToCell(WorldState world, double now) {
+        Cell cell = planner.resolveScoringCell(world);
+        committedCell = cell;
+        if (cell == null) {
+            // If no Cell is available, skip scoring and park rather than guess at a target.
             beginPark(world, now);
             return;
         }
-        currentHiveTarget = hive.computeTarget();
-        robot.follower.follow(robot.pathTo(currentHiveTarget.approachPose));
-        enter(AutoState.DRIVE_TO_HIVE, now);
+        currentCellTarget = cell.computeTarget(world.robotPose());
+        atScoringPose = false;
+        robot.follower.follow(robot.pathTo(currentCellTarget.approachPose));
+        enter(AutoState.DRIVE_TO_CELL, now);
     }
 
     private void advanceAfterAcquisition(WorldState world, double now) {
         if (world.inventory.isFull() || currentIndex >= currentRoute.order.size()) {
-            beginDriveToHive(world, now);
+            beginDriveToCell(world, now);
         } else {
             currentTargetBall = currentRoute.order.get(currentIndex);
             currentIndex++;
@@ -299,15 +355,28 @@ public class AutonomousController {
     }
 
     private void beginPark(WorldState world, double now) {
-        Pose parkPose = startPosition.fallbackParkPose(robot.redAlliance);
-        robot.follower.follow(robot.pathTo(parkPose));
+        robot.mechanism.setManualOverride(true, now);
+        parkingRoute = BioBuzzAutoConfig.parkingLaneRoute(robot.redAlliance, world.robotPose());
+        parkingWaypointIndex = 0;
+        parkingToZone = false;
+        retriedParkingRoute = false;
+        startNextParkLeg(now);
+    }
+
+    private void startNextParkLeg(double now) {
+        if (parkingWaypointIndex < parkingRoute.size()) {
+            robot.followTo(parkingRoute.get(parkingWaypointIndex++));
+        } else {
+            robot.followTo(BioBuzzAutoConfig.loadingZonePose(robot.redAlliance));
+            parkingToZone = true;
+        }
         enter(AutoState.PARK, now);
     }
 
-    // ---- Checks ---------------------------------------------------------
+    // Replanning and time checks.
 
     private boolean checkCollectionReplan(WorldState world, double now) {
-        ReplanReason reason = planner.detectReplanReason(world, currentTargetBall, committedHive);
+        ReplanReason reason = planner.detectReplanReason(world, currentTargetBall, committedCell);
         if (reason != ReplanReason.NONE) {
             lastReplanReason = reason;
             enter(AutoState.PLAN, now);
@@ -328,7 +397,14 @@ public class AutonomousController {
                 ESTIMATED_SCORE_SECONDS, ESTIMATED_PARK_SECONDS, SAFE_RESERVE_SECONDS);
     }
 
-    // ---- Small helpers ----------------------------------------------------
+    // Shared state helpers.
+
+    private void stopForUntrustedCell(double now) {
+        lastReplanReason = ReplanReason.ACTIVE_CELL_CHANGED;
+        robot.follower.stop();
+        robot.mechanism.setManualOverride(true, now);
+        enter(AutoState.EMERGENCY_STOP, now);
+    }
 
     private void enter(AutoState next, double now) {
         state = next;
@@ -338,13 +414,6 @@ public class AutonomousController {
     private double distanceTo(WorldState world, Pose target) {
         Pose pose = world.robotPose();
         return Math.hypot(target.x() - pose.x(), target.y() - pose.y());
-    }
-
-    private static double angleDifference(double a, double b) {
-        double diff = a - b;
-        while (diff > Math.PI) diff -= 2 * Math.PI;
-        while (diff < -Math.PI) diff += 2 * Math.PI;
-        return diff;
     }
 
     public AutoState state() {
@@ -362,7 +431,7 @@ public class AutonomousController {
         return lastWorldState;
     }
 
-    // ---- Telemetry (project brief section 33) ------------------------------
+    // Driver Station status.
 
     public void telemetry(Telemetry telemetry) {
         WorldState world = lastWorldState;
@@ -370,9 +439,9 @@ public class AutonomousController {
 
         telemetry.addData("STATE", state);
 
-        Hive active = world.hiveMap.activeHive();
-        telemetry.addData("ACTIVE HIVE", active == null ? "none"
-                : active.side + " " + active.state() + String.format(" (conf %.2f)", active.confidence()));
+        Cell active = planner.resolveScoringCell(world);
+        telemetry.addData("ACTIVE CELL", active == null ? "none"
+                : active.alliance + " " + active.fieldSide + " " + active.state() + String.format(" (conf %.2f)", active.confidence()));
 
         telemetry.addData("ROBOT POSE", world.robotPose());
         telemetry.addData("LOCALIZATION CONFIDENCE", String.format("%.2f", world.localization.confidence()));
@@ -386,7 +455,7 @@ public class AutonomousController {
         telemetry.addData("MECHANISM", robot.mechanism.state()
                 + (robot.mechanism.lastAcquisitionWasAssumed() ? " (last acquisition ASSUMED, not sensor-verified)" : ""));
         telemetry.addData("REPLAN REASON", lastReplanReason);
-        telemetry.addData("APRILTAG", world.hiveCameraAvailable ? "camera OK" : "camera UNAVAILABLE");
+        telemetry.addData("APRILTAG", world.cellCameraAvailable ? "camera OK" : "camera UNAVAILABLE");
         telemetry.addData("TIME REMAINING", String.format("%.1f", world.timeRemainingSeconds));
         telemetry.update();
     }

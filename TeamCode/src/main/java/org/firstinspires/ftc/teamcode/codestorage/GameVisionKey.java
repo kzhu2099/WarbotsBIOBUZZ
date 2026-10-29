@@ -17,15 +17,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// ANSWER KEY for practice/GameVisionPractice.java.
-//
-// AUDIT NOTE: the previous version of this file produced
-// MemoryPalace.Sighting objects and only tracked a single Nectar color (no
-// our-balls-vs-opponent-balls distinction at all - the exact thing the
-// project brief calls out as "not optional"). MemoryPalace no longer
-// exists (renamed to BallMap, whose entries are Ball/BallDetection
-// objects), and this key now matches the real, three-locator
-// implementation the production GameVision class uses.
+// Reference implementation for the floor-camera practice exercise.
+// It detects Pollen and both alliance colors, like the production GameVision class.
 
 public class GameVisionKey extends CameraKey {
 

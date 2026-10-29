@@ -17,16 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * PRACTICE TEMPLATE - fill in the TODOs. This is the exercise version of
- * the real GameVision class. Compare your work against
- * codestorage/GameVisionKey.java once you've given it a real try.
- *
- * Uses one webcam (facing the floor) to look for Pollen (yellow), our
- * alliance's Nectar, and the opponent's Nectar - three colors, not two,
- * because "our balls vs. opponent balls" is a real gameplay requirement,
- * not an afterthought (see the main project's audit notes on this).
- */
+/** undefined */
 public class GameVisionPractice extends CameraPractice {
 
     private static final int FRAME_WIDTH = 320;
