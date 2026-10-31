@@ -37,7 +37,7 @@ public final class RobotHardware {
         return missing.toString();
     }
 
-    public void drive(double forward, double strafe, double turn, double scale) {
+    public void drive(double forward, double strafe, double turn) {
         if (!driveReady()) {
             stopDrive();
             return;
@@ -50,12 +50,11 @@ public final class RobotHardware {
         double max = Math.max(1.0, Math.max(
                 Math.max(Math.abs(fl), Math.abs(fr)),
                 Math.max(Math.abs(bl), Math.abs(br))));
-        double power = Math.max(0.0, Math.min(1.0, scale)) / max;
 
-        frontLeft.setPower(fl * power);
-        frontRight.setPower(fr * power);
-        backLeft.setPower(bl * power);
-        backRight.setPower(br * power);
+        frontLeft.setPower(fl / max);
+        frontRight.setPower(fr / max);
+        backLeft.setPower(bl / max);
+        backRight.setPower(br / max);
     }
 
     public void stopDrive() {
@@ -74,7 +73,7 @@ public final class RobotHardware {
         private final DcMotorEx outtakeRight;
 
         private Action action = Action.OFF;
-        private double actionStarted;
+        private double startedAt;
         private boolean lastIntakeButton;
         private boolean lastShootButton;
 
@@ -90,20 +89,21 @@ public final class RobotHardware {
             configure(outtakeRight, RobotConfig.OUTTAKE_RIGHT_DIRECTION);
         }
 
-        // Left bumper collects then transfers. Right bumper shoots immediately.
-        // Hold Back to control each mechanism motor separately.
-        public void update(double now, Gamepad gamepad) {
+        public void update(double now, Gamepad gamepad, boolean shootingEnabled) {
             boolean intakePressed = gamepad.left_bumper && !lastIntakeButton;
             boolean shootPressed = gamepad.right_bumper && !lastShootButton;
             lastIntakeButton = gamepad.left_bumper;
             lastShootButton = gamepad.right_bumper;
 
             if (gamepad.back) {
+                if (action != Action.MANUAL) stopOutputs();
                 action = Action.MANUAL;
                 set(intake, -gamepad.left_stick_y * RobotConfig.INTAKE_POWER);
                 set(transfer, -gamepad.right_stick_y * RobotConfig.TRANSFER_POWER);
-                set(outtakeLeft, gamepad.left_trigger * RobotConfig.OUTTAKE_LEFT_POWER);
-                set(outtakeRight, gamepad.right_trigger * RobotConfig.OUTTAKE_RIGHT_POWER);
+                set(outtakeLeft, shootingEnabled
+                        ? gamepad.left_trigger * RobotConfig.OUTTAKE_LEFT_POWER : 0);
+                set(outtakeRight, shootingEnabled
+                        ? gamepad.right_trigger * RobotConfig.OUTTAKE_RIGHT_POWER : 0);
                 return;
             }
 
@@ -112,23 +112,23 @@ public final class RobotHardware {
                 action = Action.OFF;
             }
 
-            if (shootPressed) {
+            if (shootingEnabled && shootPressed) {
                 startShoot(now);
-            } else if (intakePressed) {
+            } else if (intakePressed && action == Action.OFF) {
                 startIntake(now);
             }
 
-            if (action == Action.INTAKE && now - actionStarted >= RobotConfig.INTAKE_SECONDS) {
+            if (action == Action.INTAKE && now - startedAt >= RobotConfig.INTAKE_SECONDS) {
                 set(intake, 0);
                 set(transfer, RobotConfig.TRANSFER_POWER);
                 action = Action.TRANSFER;
-                actionStarted = now;
+                startedAt = now;
             } else if (action == Action.TRANSFER
-                    && now - actionStarted >= RobotConfig.TRANSFER_SECONDS) {
+                    && now - startedAt >= RobotConfig.TRANSFER_SECONDS) {
                 stopOutputs();
                 action = Action.OFF;
             } else if (action == Action.SHOOT
-                    && now - actionStarted >= RobotConfig.SHOOT_SECONDS) {
+                    && now - startedAt >= RobotConfig.SHOOT_SECONDS) {
                 stopOutputs();
                 action = Action.OFF;
             }
@@ -153,18 +153,28 @@ public final class RobotHardware {
         }
 
         private void startIntake(double now) {
+            if (intake == null || transfer == null) {
+                stopOutputs();
+                action = Action.OFF;
+                return;
+            }
             stopOutputs();
             set(intake, RobotConfig.INTAKE_POWER);
             action = Action.INTAKE;
-            actionStarted = now;
+            startedAt = now;
         }
 
         private void startShoot(double now) {
+            if (outtakeLeft == null || outtakeRight == null) {
+                stopOutputs();
+                action = Action.OFF;
+                return;
+            }
             stopOutputs();
             set(outtakeLeft, RobotConfig.OUTTAKE_LEFT_POWER);
             set(outtakeRight, RobotConfig.OUTTAKE_RIGHT_POWER);
             action = Action.SHOOT;
-            actionStarted = now;
+            startedAt = now;
         }
 
         private void stopOutputs() {
