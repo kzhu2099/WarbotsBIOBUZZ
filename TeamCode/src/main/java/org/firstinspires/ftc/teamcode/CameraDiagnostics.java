@@ -40,7 +40,7 @@ public final class CameraDiagnostics {
 
             opened = new VisionPortal.Builder()
                     .setCamera(hardwareMap.get(WebcamName.class, RobotConfig.CAMERA))
-                    .setCameraResolution(new Size(320, 240))
+                    .setCameraResolution(new Size(640, 480))
                     .enableLiveView(true)
                     .addProcessor(tags)
                     .addProcessor(yellow)
