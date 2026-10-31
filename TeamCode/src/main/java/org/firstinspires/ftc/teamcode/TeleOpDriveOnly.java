@@ -14,15 +14,9 @@ public class TeleOpDriveOnly extends OpMode {
 
     @Override
     public void loop() {
-        double scale = gamepad1.right_trigger > 0.1
-                ? RobotConfig.DRIVE_PRECISION_SCALE : 1.0;
-
-        robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x, scale);
-
-        telemetry.addData("Drive", robot.driveReady() ? "ready" : "missing motors");
-        if (!robot.missingDriveMotors().isEmpty()) {
-            telemetry.addData("Missing motors", robot.missingDriveMotors());
-        }
+        robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        telemetry.addData("Drive", robot.driveReady() ? "ready" : "MISSING MOTORS");
+        if (!robot.driveReady()) telemetry.addData("Missing", robot.missingDriveMotors());
         telemetry.update();
     }
 
