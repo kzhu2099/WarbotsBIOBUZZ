@@ -15,7 +15,6 @@ public class TeleOpPedro extends OpMode {
     @Override
     public void init() {
         mechanisms = new RobotHardware.Mechanisms(hardwareMap);
-
         try {
             follower = new Follower(
                     new PinpointLocalizer(hardwareMap, RobotConfig.pinpointConfig()),
@@ -23,30 +22,28 @@ public class TeleOpPedro extends OpMode {
                     null
             );
         } catch (RuntimeException e) {
-            error = message(e);
+            error = errorText(e);
         }
     }
 
     @Override
     public void loop() {
-        mechanisms.update(getRuntime(), gamepad2);
+        mechanisms.update(getRuntime(), gamepad2, true);
 
         if (follower != null && error == null) {
             try {
                 follower.manual(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
                 follower.update();
-                telemetry.addData("Pedro", "driving");
-                telemetry.addData("Pinpoint pose", follower.pose());
+                telemetry.addData("Pedro", "ready");
+                telemetry.addData("Pose", follower.pose());
             } catch (RuntimeException e) {
-                error = message(e);
+                error = errorText(e);
                 follower.stop();
             }
-        }
-
-        if (error != null) {
-            telemetry.addData("PEDRO ERROR", error);
-            telemetry.addLine("Check motor names, Pinpoint name, offsets, and encoder directions.");
-            telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drivetrain separately.");
+        } else {
+            telemetry.addData("Pedro ERROR", error);
+            telemetry.addLine("Check the Pinpoint name, offsets, and encoder directions.");
+            telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drive motors.");
         }
 
         telemetry.addData("Mechanisms", mechanisms.action());
@@ -62,8 +59,7 @@ public class TeleOpPedro extends OpMode {
         if (mechanisms != null) mechanisms.stop();
     }
 
-    private static String message(RuntimeException error) {
-        return error.getMessage() == null
-                ? error.getClass().getSimpleName() : error.getMessage();
+    private static String errorText(RuntimeException error) {
+        return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
     }
 }
