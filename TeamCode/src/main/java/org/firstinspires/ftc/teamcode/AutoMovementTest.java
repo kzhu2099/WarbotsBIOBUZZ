@@ -78,7 +78,7 @@ public class AutoMovementTest extends OpMode {
         }
 
         telemetry.addData("Step", step.name);
-        telemetry.addData("Step number", (stepIndex + 1) + " / " + steps.length);
+        telemetry.addData("Step number", Math.min(stepIndex + 1, steps.length) + " / " + steps.length);
         telemetry.addData("Power", "%.2f / %.2f / %.2f",
                 step.forward, step.strafe, step.turn);
         telemetry.addLine("Run with robot raised for the first test.");
