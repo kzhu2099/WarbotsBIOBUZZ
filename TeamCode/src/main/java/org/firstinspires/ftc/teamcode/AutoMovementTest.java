@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 @Autonomous(name = "Auto - Forward Test", group = "BIOBUZZ Tests")
 public class AutoMovementTest extends LinearOpMode {
     @Override
-    public void runOpMode() {
+    public void runOpMode() throws InterruptedException {
         RobotHardware robot = new RobotHardware(hardwareMap);
 
         telemetry.addData("Drive", robot.driveReady() ? "ready" : "missing motors");
@@ -25,6 +25,7 @@ public class AutoMovementTest extends LinearOpMode {
             double endTime = getRuntime() + RobotConfig.AUTO_FORWARD_SECONDS;
             while (opModeIsActive() && getRuntime() < endTime) {
                 robot.drive(RobotConfig.AUTO_FORWARD_POWER, 0, 0, 1.0);
+                idle();
             }
         } finally {
             robot.stopDrive();
