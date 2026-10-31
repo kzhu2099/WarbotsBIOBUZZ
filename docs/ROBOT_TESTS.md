@@ -1,64 +1,65 @@
-# BIOBUZZ robot test code
+# BIOBUZZ robot tests
 
-The custom robot code is kept in seven Java files in one package.
+The custom code is kept small and lives in one package.
 
 ## OpModes
 
-| Driver Station name | Use |
+| Driver Station name | What it tests |
 |---|---|
-| TeleOp - Pedro + Pinpoint | Pedro manual mecanum drive with Pinpoint. No Foresight or path following. Press B to toggle field-centric drive after Pinpoint calibration. |
-| TeleOp - Manual (No Pedro) | Direct motor drive plus timed intake, transfer, and outtake. |
-| TeleOp - Drive Only | Direct four-motor drive. No mechanisms or camera. |
-| Auto - Movement Test | Low-power, timed forward/right/back movement test. No localization, mechanisms, or path following. |
+| TeleOp - Pedro + Pinpoint | Pedro manual drive and Pinpoint localization |
+| TeleOp - Manual (No Pedro) | Direct mecanum drive and timed mechanism presets |
+| TeleOp - Drive Only | Direct drive motors only; no mechanisms or camera |
+| Auto - Forward Test | Drives forward at one power for one time |
+| Camera - Visibility Test | Separate camera check for AprilTags and game pieces |
 
-## Autonomous selections
+## Change these values in RobotConfig.java
 
-The Movement Test includes the INIT selection screen that the later scoring auto will use:
+- Hardware names and motor directions.
+- Intake, transfer, and outtake powers and run times.
+- Forward-test power and run time.
+- Pinpoint offsets and encoder directions.
 
-- X: alliance.
-- D-pad left/right: one of three start presets: side wall, near corner, far corner.
-- D-pad up/down: Flower: left wall, top wall, right wall, bottom wall.
-- A: lane: inside Hive or outside Hive.
-- B: manual fallback for which Cell starts upward.
-- Y: whether the preload sequence is expected to tip the Hive before the Flower leg.
+The motor directions and Pinpoint offsets are not verified hardware measurements. Confirm them on the assembled robot.
 
-Every selected start pose is the robot chassis center. Measure the assembled width and length, including bumpers, in `RobotConfig.java`; they are intentionally unset until measured. The start presets preserve the team's previous side-wall / near-corner / far-corner choices. They are team presets, not three official named starting locations.
+## TeleOp controls
 
-The red/blue fallback Hive orientation is based on the season's starting setup. The camera overrides it after it sees the same scorable cluster repeatedly. If no stable cluster is read, telemetry labels the state `ASSUMED`. B lets the team correct that assumption.
-
-The camera reads BIOBUZZ AprilTag clusters by their metadata name and roll, not by treating the 16 printed tags as 16 independent single tags. A cell is considered the upward-facing/scorable cell when the matching-alliance cluster is seen right-side-up (absolute roll below 90 degrees). Validate that roll interpretation with the actual installed camera orientation before relying on it.
-
-The preload-tip setting is a prediction, not a sensor reading. It defaults to No. If set to Yes, the predicted upward-facing Cell flips before the Flower leg. A later stable camera read should replace that prediction.
-
-## Route lanes
-
-- **Inside Hive:** a transit route under/inside the Hive frame, confined to the robot's own alliance half. It must not cross the field midline into the partner's half.
-- **Outside Hive:** a detour around the outside of the Hive frame using the perimeter-side corridor.
-- The partner is assigned the opposite lane by default, so the two robots do not plan the same corridor.
-
-The inside lane is for passing through, not waiting under the Hive for scoring elements to fall or deliberately catching them. The manual describes those behaviours as likely strategic.
-
-The actual lane waypoints and Flower centers are not guessed in this test build. Populate them from the official field CAD after measuring the robot footprint and confirming field orientation. The test OpMode displays the plan but only drives the timed forward/right/back sequence.
-
-## Controls
-
-Gamepad 1:
+Gamepad 1 drives:
 - Left stick: forward and strafe.
 - Right stick X: turn.
-- Right trigger: precision speed in the TeleOps.
-- B in the Pedro TeleOp: switch between robot-centric and field-centric drive.
+- Right trigger: reduced drive speed.
 
-Gamepad 2:
-- Left bumper: start intake, then timed transfer.
-- Right bumper: shoot after transfer has finished.
-- Hold Back: manual override. Left stick Y runs intake, right stick Y runs transfer, and the triggers run the left and right outtake motors independently.
+Gamepad 2 runs mechanisms:
+- Left bumper: run intake, then transfer automatically.
+- Right bumper: run both outtake motors for the shooting preset.
+- Hold Back: manual control. Left stick Y runs intake, right stick Y runs transfer, and the triggers run the two outtake motors independently.
 
-The mechanism has no sensors. Its state is based on timers, not confirmation that a game piece was acquired or scored. Change all mechanism powers and times in `RobotConfig.java`.
+The mechanism presets are timer-based. There are no sensors confirming that a ball was collected, transferred, or launched. Adjust the powers and times in RobotConfig.java.
 
-## First hardware test
+## Pedro test
 
-1. Confirm hardware names in `RobotConfig.java`: `fl`, `fr`, `bl`, `br`, `odom`, `Webcam 2`, `intake`, `transfer`, `outtakeLeft`, and `outtakeRight`.
-2. Raise the robot. Run `Auto - Movement Test` at 0.20 power and 0.20 seconds. Verify forward, right, and backward independently.
-3. Run `TeleOp - Manual (No Pedro)`. Check each mechanism independently with Back override before the timed cycle.
-4. Run Pedro + Pinpoint only after checking odometry hardware name, pod directions, and offsets. The offsets are inherited estimates, not measured values.
-5. Check the AprilTag cluster names and roll values from the actual camera mount. Confirm the camera faces the direction assumed by the roll test.
+Pedro manual drive uses the documented Pedro 3 pattern: call follower.manual(...) with the three gamepad axes, then call follower.update() every loop. This test is robot-centric so it does not depend on a calibrated field heading.
+
+Path following is not enabled. The Pinpoint offsets and directions still need to be measured and checked on the robot. If Pedro fails to initialize or update, the OpMode reports the error; use the direct manual TeleOp to isolate the four drive motors.
+
+## Camera test
+
+The camera is not used by either TeleOp or by autonomous code. Camera - Visibility Test is only a diagnostic.
+
+It opens the configured webcam, shows AprilTag annotations, and looks for the game-piece colors in the image:
+- Yellow Pollen.
+- Red and blue Nectar.
+
+The colors and sizes come from BIOBUZZ Manual TU07, Section 9.8, page 72. Open Camera Stream on the Driver Station while the test is running to inspect the live image. Color thresholds may need adjustment for the camera, lighting, and field.
+
+Hive state is a manual match-preparation choice, not a camera decision. A scoring auto should have separate INIT selections for the Cell to target during the preload and the Cell to target for the Flower leg. The driver marks the second choice manually if the preload changed the Hive. The forward test below does not need Hive selections because it does not score.
+
+## Forward test and manual scoring rules
+
+Auto - Forward Test only applies constant forward power for the configured time, then stops. It has no ramping, acceleration profile, path follower, or extra movement steps. It is a drivetrain test, not a complete Leave-and-Park routine.
+
+The scoring references are from BIOBUZZ Competition Manual TU07:
+- Section 10.5.4, page 88: LEAVE means the ROBOT is no longer contacting the perimeter wall. PARK means the ROBOT is at least partially in the LOADING ZONE.
+- Table 10-2, page 89: LEAVE is worth 3 AUTO points. PARK is worth 5 AUTO points and 5 TELEOP points.
+- Section 10.5, page 84: LEAVE and AUTO PARK are assessed at the end of AUTO; TELEOP PARK is assessed at the end of the MATCH.
+
+The forward test does not guarantee LEAVE points and does not attempt to PARK. Actual distances and routes must be tested on the field.
