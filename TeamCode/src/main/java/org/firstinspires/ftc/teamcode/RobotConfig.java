@@ -96,9 +96,9 @@ public final class RobotConfig {
             throw new IllegalStateException("Measure ROBOT_WIDTH_INCHES and ROBOT_LENGTH_INCHES first.");
         }
 
-        double halfExtent = Math.abs(Math.cos(inwardHeading)) * ROBOT_LENGTH_INCHES / 2.0
-                + Math.abs(Math.sin(inwardHeading)) * ROBOT_WIDTH_INCHES / 2.0;
-        double centerDistance = halfExtent + clearanceInches;
+        // The heading points straight in from the wall, so robot length is
+        // the dimension along that direction.
+        double centerDistance = ROBOT_LENGTH_INCHES / 2.0 + clearanceInches;
 
         return new Pose(
                 wallX + Math.cos(inwardHeading) * centerDistance,
