@@ -1,26 +1,20 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.follower.ManualDrive;
 import com.pedropathing.revhub.drivetrains.Mecanum;
 import com.pedropathing.revhub.localizers.PinpointLocalizer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-/** Pedro manual-drive test. Path following is intentionally not enabled here. */
 @TeleOp(name = "TeleOp - Pedro + Pinpoint", group = "BIOBUZZ Tests")
 public class TeleOpPedro extends OpMode {
     private Follower follower;
     private RobotHardware.Mechanisms mechanisms;
-    private AprilTagCamera camera;
-    private String initError;
-    private boolean fieldCentric;
+    private String error;
 
     @Override
     public void init() {
         mechanisms = new RobotHardware.Mechanisms(hardwareMap);
-        camera = new AprilTagCamera(hardwareMap);
 
         try {
             follower = new Follower(
@@ -29,45 +23,36 @@ public class TeleOpPedro extends OpMode {
                     null
             );
         } catch (RuntimeException e) {
-            initError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            error = message(e);
         }
     }
 
     @Override
     public void loop() {
-        if (follower == null) {
-            telemetry.addLine("PEDRO NOT READY");
-            telemetry.addData("Reason", initError);
-            telemetry.addLine("Use TeleOp - Manual until the Pinpoint is configured.");
-            telemetry.update();
-            return;
-        }
-
-        if (gamepad1.bWasPressed()) fieldCentric = !fieldCentric;
-
-        double scale = gamepad1.right_trigger > 0.1
-                ? RobotConfig.DRIVE_PRECISION_SCALE : 1.0;
-        DrivePowers powers = new DrivePowers(
-                -gamepad1.left_stick_y * scale,
-                gamepad1.left_stick_x * scale,
-                gamepad1.right_stick_x * scale
-        );
-
-        if (fieldCentric) {
-            powers = ManualDrive.fieldCentric(powers, follower.pose().heading());
-        }
-
-        follower.manual(powers);
-        follower.update();
-
         mechanisms.update(getRuntime(), gamepad2);
-        telemetry.addData("Drive", fieldCentric ? "Pedro / field-centric" : "Pedro / robot-centric");
-        telemetry.addData("Pose (robot center)", follower.pose());
-        telemetry.addData("Mechanism", mechanisms.state());
-        String missing = mechanisms.missingMotors();
-        telemetry.addData(missing.isEmpty() ? "Mechanism motors" : "MECHANISM WARNING",
-                missing.isEmpty() ? "all found" : "missing: " + missing);
-        camera.addTelemetry(telemetry);
+
+        if (follower != null && error == null) {
+            try {
+                follower.manual(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+                follower.update();
+                telemetry.addData("Pedro", "driving");
+                telemetry.addData("Pinpoint pose", follower.pose());
+            } catch (RuntimeException e) {
+                error = message(e);
+                follower.stop();
+            }
+        }
+
+        if (error != null) {
+            telemetry.addData("PEDRO ERROR", error);
+            telemetry.addLine("Check motor names, Pinpoint name, offsets, and encoder directions.");
+            telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drivetrain separately.");
+        }
+
+        telemetry.addData("Mechanisms", mechanisms.action());
+        if (!mechanisms.missingMotors().isEmpty()) {
+            telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
+        }
         telemetry.update();
     }
 
@@ -75,6 +60,10 @@ public class TeleOpPedro extends OpMode {
     public void stop() {
         if (follower != null) follower.stop();
         if (mechanisms != null) mechanisms.stop();
-        if (camera != null) camera.close();
+    }
+
+    private static String message(RuntimeException error) {
+        return error.getMessage() == null
+                ? error.getClass().getSimpleName() : error.getMessage();
     }
 }
