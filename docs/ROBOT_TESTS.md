@@ -1,65 +1,90 @@
 # BIOBUZZ robot tests
 
-The custom code is kept small and lives in one package.
+These are the only team OpModes for the current testing stage:
 
-## OpModes
-
-| Driver Station name | What it tests |
+| Driver Station name | Purpose |
 |---|---|
-| TeleOp - Pedro + Pinpoint | Pedro manual drive and Pinpoint localization |
-| TeleOp - Manual (No Pedro) | Direct mecanum drive and timed mechanism presets |
-| TeleOp - Drive Only | Direct drive motors only; no mechanisms or camera |
-| Auto - Forward Test | Drives forward at one power for one time |
-| Camera - Visibility Test | Separate camera check for AprilTags and game pieces |
+| TeleOp - Pedro + Pinpoint | Test the drivetrain through Pedro and the Pinpoint |
+| TeleOp - Manual (No Pedro) | Test direct drive, intake, transfer, and shooting |
+| TeleOp - No Shooting | Test direct drive, intake, and transfer; outtake is disabled |
+| Auto - Forward Test | Drive forward at one power for one time, then stop |
+| Camera - Visibility Test | Check the webcam, AprilTags, and game-piece colors |
 
-## Change these values in RobotConfig.java
+## Change hardware and test values
 
-- Hardware names and motor directions.
-- Intake, transfer, and outtake powers and run times.
-- Forward-test power and run time.
-- Pinpoint offsets and encoder directions.
+Edit `RobotConfig.java` only:
 
-The motor directions and Pinpoint offsets are not verified hardware measurements. Confirm them on the assembled robot.
+- Hardware names.
+- Motor directions.
+- Forward-test power and time.
+- Intake, transfer, and outtake powers and times.
+- Pinpoint offsets and directions.
 
-## TeleOp controls
+Motor directions and Pinpoint offsets are inherited starting values, not verified measurements. Check them on the physical robot.
 
-Gamepad 1 drives:
+## Driver controls
+
+### Gamepad 1 (all TeleOps)
+
 - Left stick: forward and strafe.
 - Right stick X: turn.
-- Right trigger: reduced drive speed.
 
-Gamepad 2 runs mechanisms:
-- Left bumper: run intake, then transfer automatically.
+There is no field-centric toggle, precision mode, route selection, or extra drive control.
+
+### Gamepad 2 (TeleOp - Manual)
+
+- Left bumper: run intake, then transfer.
 - Right bumper: run both outtake motors for the shooting preset.
-- Hold Back: manual control. Left stick Y runs intake, right stick Y runs transfer, and the triggers run the two outtake motors independently.
+- Hold Back: manual mechanism test. Left stick Y runs intake, right stick Y runs transfer, left trigger runs left outtake, and right trigger runs right outtake.
 
-The mechanism presets are timer-based. There are no sensors confirming that a ball was collected, transferred, or launched. Adjust the powers and times in RobotConfig.java.
+### Gamepad 2 (TeleOp - No Shooting)
+
+- Left bumper: run intake, then transfer.
+- Hold Back: manually test intake and transfer.
+- Shooting and outtake motors are disabled in this OpMode.
+
+The presets are timer-based. There are no sensors confirming a game piece was collected, transferred, or launched. Adjust the powers and times in `RobotConfig.java`.
 
 ## Pedro test
 
-Pedro manual drive uses the documented Pedro 3 pattern: call follower.manual(...) with the three gamepad axes, then call follower.update() every loop. This test is robot-centric so it does not depend on a calibrated field heading.
+The Pedro TeleOp calls `follower.manual(forward, strafe, turn)` and `follower.update()` each loop. It is robot-centric only.
 
-Path following is not enabled. The Pinpoint offsets and directions still need to be measured and checked on the robot. If Pedro fails to initialize or update, the OpMode reports the error; use the direct manual TeleOp to isolate the four drive motors.
+Path following, Foresight, field-centric control, and auto route planning are deliberately not included. Pinpoint offsets and directions must be physically checked before relying on the pose.
+
+If Pedro fails to initialize or update, the OpMode reports the error. Use TeleOp - Manual (No Pedro) to test the same drive motors without Pedro.
 
 ## Camera test
 
-The camera is not used by either TeleOp or by autonomous code. Camera - Visibility Test is only a diagnostic.
+The camera is not used by any drivetrain, mechanism, or autonomous control.
 
-It opens the configured webcam, shows AprilTag annotations, and looks for the game-piece colors in the image:
-- Yellow Pollen.
-- Red and blue Nectar.
+Camera - Visibility Test is only a diagnostic. Open Camera Stream on the Driver Station:
+- AprilTag Processor displays visible tag IDs and BIOBUZZ cluster names.
+- Yellow blob detection is a visual check for Pollen.
+- Red and blue blob detection is a visual check for Nectar.
+- Contour overlays show which colored objects were detected.
 
-The colors and sizes come from BIOBUZZ Manual TU07, Section 9.8, page 72. Open Camera Stream on the Driver Station while the test is running to inspect the live image. Color thresholds may need adjustment for the camera, lighting, and field.
+BIOBUZZ Manual TU07 §9.8, page 72, identifies Pollen as yellow (about 2.8 inches) and Nectar as red or blue (about 3.6 inches). The color detector is a visibility aid, not a game-piece classifier. Lighting, exposure, and field conditions may change the result.
 
-Hive state is a manual match-preparation choice, not a camera decision. A scoring auto should have separate INIT selections for the Cell to target during the preload and the Cell to target for the Flower leg. The driver marks the second choice manually if the preload changed the Hive. The forward test below does not need Hive selections because it does not score.
+No camera reading changes the expected Hive tip or chooses a Cell. Any future scoring auto should use a simple manual INIT choice for the Cell targeted before and after a preload.
 
-## Forward test and manual scoring rules
+## Forward test and scoring references
 
-Auto - Forward Test only applies constant forward power for the configured time, then stops. It has no ramping, acceleration profile, path follower, or extra movement steps. It is a drivetrain test, not a complete Leave-and-Park routine.
+Auto - Forward Test applies constant forward power for the configured time and then stops. It has no ramping, acceleration profile, path follower, distance estimate, or extra movement steps.
 
-The scoring references are from BIOBUZZ Competition Manual TU07:
-- Section 10.5.4, page 88: LEAVE means the ROBOT is no longer contacting the perimeter wall. PARK means the ROBOT is at least partially in the LOADING ZONE.
+BIOBUZZ Manual TU07:
+- §10.5.4, page 88: LEAVE requires the robot to stop contacting the perimeter wall. PARK requires at least part of the robot to be in the Loading Zone.
 - Table 10-2, page 89: LEAVE is worth 3 AUTO points. PARK is worth 5 AUTO points and 5 TELEOP points.
-- Section 10.5, page 84: LEAVE and AUTO PARK are assessed at the end of AUTO; TELEOP PARK is assessed at the end of the MATCH.
+- §10.5, page 84: LEAVE and AUTO PARK are assessed at the end of AUTO; TELEOP PARK is assessed at the end of the MATCH.
 
-The forward test does not guarantee LEAVE points and does not attempt to PARK. Actual distances and routes must be tested on the field.
+The forward test does not guarantee LEAVE points and does not attempt PARK. A real Leave-and-Park routine needs field measurements and physical testing.
+
+## First hardware test
+
+1. Secure the robot on a stand so the wheels cannot touch the floor.
+2. Check the configured hardware names and wheel directions.
+3. Run Auto - Forward Test at the low configured power and time. Confirm all four wheels turn the intended direction; stop immediately if they do not.
+4. Test TeleOp - Manual with the wheels still raised.
+5. Test each mechanism separately while holding Back. Keep hands and loose objects clear of moving parts.
+6. Run the automatic intake/transfer and shooting presets only after confirming each motor's direction.
+7. Test Pedro + Pinpoint last, after confirming the Pinpoint name, offsets, and pod directions.
+8. Run Camera - Visibility Test separately and inspect the Driver Station camera stream.
