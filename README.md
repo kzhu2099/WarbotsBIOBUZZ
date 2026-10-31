@@ -7,9 +7,9 @@ This GitHub repository contains the source code that is used to build an Android
 
 ## Warbots BIOBUZZ robot code
 
-The team's current test OpModes, controls, mechanism presets, camera diagnostic, and hardware setup notes are in [docs/ROBOT_TESTS.md](docs/ROBOT_TESTS.md).
+The team's current test OpModes, simple controls, mechanism presets, camera diagnostic, and hardware setup notes are in [docs/ROBOT_TESTS.md](docs/ROBOT_TESTS.md).
 
-The simple autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. PedroPathing is currently used for manual TeleOp testing only; path-following autonomous has not been tuned or enabled.
+The autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. Pedro is currently used for manual TeleOp testing only; path-following autonomous is not enabled.
 
 ## Requirements
 To use this Android Studio project, you will need Android Studio Narwhal 3 Feature Drop or later.
