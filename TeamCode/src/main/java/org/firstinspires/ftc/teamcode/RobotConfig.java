@@ -40,6 +40,13 @@ public final class RobotConfig {
     public static final DcMotorSimple.Direction OUTTAKE_LEFT_DIRECTION = DcMotorSimple.Direction.FORWARD;
     public static final DcMotorSimple.Direction OUTTAKE_RIGHT_DIRECTION = DcMotorSimple.Direction.FORWARD;
 
+    // Ignore small joystick drift while keeping full stick range.
+    public static final double JOYSTICK_DEADBAND = 0.05;
+
+    public static double driveAxis(double value) {
+        return Math.abs(value) < JOYSTICK_DEADBAND ? 0.0 : value;
+    }
+
     // Forward-only test: one power, one duration, then stop.
     public static final double AUTO_FORWARD_POWER = 0.20;
     public static final long AUTO_FORWARD_TIME_MS = 200;
