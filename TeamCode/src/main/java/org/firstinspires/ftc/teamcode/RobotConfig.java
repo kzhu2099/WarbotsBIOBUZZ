@@ -8,20 +8,28 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 public final class RobotConfig {
     private RobotConfig() {}
 
-    // Hardware names. These must match the Driver Station configuration.
+    /*
+     * Hardware used by this code:
+     * 4 drive motors + 4 mechanism motors.
+     * 0 servos. 1 Pinpoint (Pedro TeleOp only). 1 webcam (camera test only).
+     *
+     * These are the names from the team's existing code, not a live read
+     * of the Control Hub configuration. Check the names before running.
+     */
     public static final String FRONT_LEFT = "fl";
     public static final String FRONT_RIGHT = "fr";
     public static final String BACK_LEFT = "bl";
     public static final String BACK_RIGHT = "br";
-    public static final String ODOMETRY = "odom";
-    public static final String CAMERA = "Webcam 2";
 
     public static final String INTAKE = "intake";
     public static final String TRANSFER = "transfer";
     public static final String OUTTAKE_LEFT = "outtakeLeft";
     public static final String OUTTAKE_RIGHT = "outtakeRight";
 
-    // Verify wheel directions with the robot raised before driving.
+    public static final String ODOMETRY = "odom";
+    public static final String CAMERA = "Webcam 2";
+
+    // Check wheel direction with the robot raised before driving.
     public static final DcMotorSimple.Direction FRONT_LEFT_DIRECTION = DcMotorSimple.Direction.REVERSE;
     public static final DcMotorSimple.Direction FRONT_RIGHT_DIRECTION = DcMotorSimple.Direction.REVERSE;
     public static final DcMotorSimple.Direction BACK_LEFT_DIRECTION = DcMotorSimple.Direction.REVERSE;
@@ -32,11 +40,11 @@ public final class RobotConfig {
     public static final DcMotorSimple.Direction OUTTAKE_LEFT_DIRECTION = DcMotorSimple.Direction.FORWARD;
     public static final DcMotorSimple.Direction OUTTAKE_RIGHT_DIRECTION = DcMotorSimple.Direction.FORWARD;
 
-    // Simple forward test. Change only the power and time.
+    // Forward-only test: one power, one duration, then stop.
     public static final double AUTO_FORWARD_POWER = 0.20;
     public static final long AUTO_FORWARD_TIME_MS = 200;
 
-    // Mechanism presets. These are starting values, not tuned measurements.
+    // Timed mechanism presets. Tune these on the physical robot.
     public static final double INTAKE_POWER = 1.0;
     public static final double INTAKE_SECONDS = 2.5;
     public static final double TRANSFER_POWER = 1.0;
@@ -46,9 +54,9 @@ public final class RobotConfig {
     public static final double SHOOT_SECONDS = 1.0;
 
     // BIOBUZZ Manual TU07: §10.5.4 p.88 and Table 10-2 p.89.
-    // LEAVE = 3 AUTO points. PARK = 5 AUTO points or 5 TELEOP points.
+    // LEAVE = 3 AUTO points. PARK = 5 points in AUTO and TELEOP.
 
-    // Measure these Pinpoint values on the robot; old values are only a starting point.
+    // Pinpoint values are inherited starting values. Measure before using pose data.
     public static final double PINPOINT_Y_POD_OFFSET_INCHES = 3.75;
     public static final double PINPOINT_X_POD_OFFSET_INCHES = 0.20;
     public static final GoBildaPinpointDriver.EncoderDirection PINPOINT_Y_DIRECTION =
