@@ -11,18 +11,18 @@ public class TeleOpNoShoot extends OpMode {
     @Override
     public void init() {
         robot = new RobotHardware(hardwareMap);
-        mechanisms = new RobotHardware.Mechanisms(hardwareMap);
+        mechanisms = new RobotHardware.Mechanisms(hardwareMap, false);
     }
 
     @Override
     public void loop() {
         robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-        mechanisms.update(getRuntime(), gamepad2, false);
+        mechanisms.update(getRuntime(), gamepad2);
 
         telemetry.addData("Drive", robot.driveReady() ? "ready" : "MISSING MOTORS");
         if (!robot.driveReady()) telemetry.addData("Missing drive motors", robot.missingDriveMotors());
         telemetry.addData("Mechanisms", mechanisms.action());
-        telemetry.addLine("Shooting is disabled in this OpMode.");
+        telemetry.addLine("Outtake motors are not mapped or controlled in this OpMode.");
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
