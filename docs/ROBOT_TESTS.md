@@ -26,7 +26,7 @@ No OpMode in this code creates, maps, or commands a Servo. If the physical robot
 |---|---:|---|
 | TeleOp - Pedro + Pinpoint | All 8 | Pinpoint |
 | TeleOp - Manual (No Pedro) | All 8 | None |
-| TeleOp - No Shooting | 6: four drive, intake, transfer | Does not map either outtake motor |
+| TeleOp - No Shooting | All 8 are initialized and zeroed; only 6 are controllable | Outtakes are held at zero |
 | Auto - Forward Test | 4 drive | None |
 | Camera - Visibility Test | 0 | Webcam |
 
@@ -46,7 +46,7 @@ Uses the four drive motors directly, without Pedro or Pinpoint. It is the fallba
 
 ### TeleOp - No Shooting
 
-Uses only the four drive motors, intake, and transfer. The code does not even look up the outtake motors in this mode. The right bumper and outtake triggers have no effect.
+Uses only the four drive motors, intake, and transfer. The outtake motors are initialized and commanded to zero at startup and stop, but no button can activate them. This keeps them off even when switching from another OpMode. The right bumper and outtake triggers have no effect.
 
 ### Auto - Forward Test
 
