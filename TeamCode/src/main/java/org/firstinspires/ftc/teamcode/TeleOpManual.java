@@ -16,6 +16,14 @@ public class TeleOpManual extends OpMode {
     }
 
     @Override
+    public void init_loop() {
+        telemetry.addData("Drive motors", robot.driveReady() ? "ready" : robot.missingDriveMotors());
+        telemetry.addData("Mechanism motors", mechanisms.missingMotors().isEmpty()
+                ? "all found" : mechanisms.missingMotors());
+        telemetry.update();
+    }
+
+    @Override
     public void loop() {
         if (error == null) {
             try {
