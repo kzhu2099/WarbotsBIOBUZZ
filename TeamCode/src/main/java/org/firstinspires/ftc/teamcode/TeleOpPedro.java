@@ -37,6 +37,16 @@ public class TeleOpPedro extends OpMode {
     }
 
     @Override
+    public void init_loop() {
+        telemetry.addData("Drive motors", driveHardware.driveReady()
+                ? "ready" : driveHardware.missingDriveMotors());
+        telemetry.addData("Pedro/Pinpoint", follower == null ? "NOT READY: " + driveError : "ready");
+        telemetry.addData("Mechanism motors", mechanisms.missingMotors().isEmpty()
+                ? "all found" : mechanisms.missingMotors());
+        telemetry.update();
+    }
+
+    @Override
     public void loop() {
         if (mechanismError == null) {
             try {
