@@ -8,41 +8,51 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 @TeleOp(name = "TeleOp - Pedro + Pinpoint", group = "BIOBUZZ Tests")
 public class TeleOpPedro extends OpMode {
-    private Follower follower;
+    private RobotHardware driveHardware;
     private RobotHardware.Mechanisms mechanisms;
+    private Follower follower;
     private String error;
 
     @Override
     public void init() {
-        mechanisms = new RobotHardware.Mechanisms(hardwareMap);
+        driveHardware = new RobotHardware(hardwareMap);
+        mechanisms = new RobotHardware.Mechanisms(hardwareMap, true);
+
+        if (!driveHardware.driveReady()) {
+            error = "Missing drive motors: " + driveHardware.missingDriveMotors();
+            return;
+        }
+
         try {
             follower = new Follower(
                     new PinpointLocalizer(hardwareMap, RobotConfig.pinpointConfig()),
                     new Mecanum(hardwareMap, RobotConfig.mecanumConfig()),
-                    null
+                    null // This test only uses manual drive; it never follows paths or holds a pose.
             );
         } catch (RuntimeException e) {
             error = errorText(e);
+            driveHardware.stopDrive();
         }
     }
 
     @Override
     public void loop() {
-        mechanisms.update(getRuntime(), gamepad2, true);
+        mechanisms.update(getRuntime(), gamepad2);
 
         if (follower != null && error == null) {
             try {
                 follower.manual(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
                 follower.update();
                 telemetry.addData("Pedro", "ready");
-                telemetry.addData("Pose", follower.pose());
+                telemetry.addData("Pinpoint pose", follower.pose());
             } catch (RuntimeException e) {
                 error = errorText(e);
                 follower.stop();
+                driveHardware.stopDrive();
             }
         } else {
-            telemetry.addData("Pedro ERROR", error);
-            telemetry.addLine("Check the Pinpoint name, offsets, and encoder directions.");
+            driveHardware.stopDrive();
+            telemetry.addData("PEDRO STOPPED", error);
             telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drive motors.");
         }
 
@@ -56,6 +66,7 @@ public class TeleOpPedro extends OpMode {
     @Override
     public void stop() {
         if (follower != null) follower.stop();
+        if (driveHardware != null) driveHardware.stopDrive();
         if (mechanisms != null) mechanisms.stop();
     }
 
