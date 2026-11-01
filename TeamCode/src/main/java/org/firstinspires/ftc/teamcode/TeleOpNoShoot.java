@@ -38,6 +38,9 @@ public class TeleOpNoShoot extends OpMode {
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
+        if (!mechanisms.missingOuttakeMotors().isEmpty()) {
+            telemetry.addData("OUTTAKE ZERO WARNING", mechanisms.missingOuttakeMotors());
+        }
         if (error != null) telemetry.addData("HARDWARE ERROR - stopped", error);
         telemetry.update();
     }
