@@ -71,17 +71,20 @@ public final class RobotHardware {
         private final DcMotorEx transfer;
         private final DcMotorEx outtakeLeft;
         private final DcMotorEx outtakeRight;
+        private final boolean shootingEnabled;
 
         private Action action = Action.OFF;
         private double startedAt;
         private boolean lastIntakeButton;
         private boolean lastShootButton;
 
-        public Mechanisms(HardwareMap hardwareMap) {
+        public Mechanisms(HardwareMap hardwareMap, boolean shootingEnabled) {
+            this.shootingEnabled = shootingEnabled;
+
             intake = getMotor(hardwareMap, RobotConfig.INTAKE);
             transfer = getMotor(hardwareMap, RobotConfig.TRANSFER);
-            outtakeLeft = getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT);
-            outtakeRight = getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT);
+            outtakeLeft = shootingEnabled ? getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT) : null;
+            outtakeRight = shootingEnabled ? getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT) : null;
 
             configure(intake, RobotConfig.INTAKE_DIRECTION);
             configure(transfer, RobotConfig.TRANSFER_DIRECTION);
@@ -89,7 +92,7 @@ public final class RobotHardware {
             configure(outtakeRight, RobotConfig.OUTTAKE_RIGHT_DIRECTION);
         }
 
-        public void update(double now, Gamepad gamepad, boolean shootingEnabled) {
+        public void update(double now, Gamepad gamepad) {
             boolean intakePressed = gamepad.left_bumper && !lastIntakeButton;
             boolean shootPressed = gamepad.right_bumper && !lastShootButton;
             lastIntakeButton = gamepad.left_bumper;
@@ -100,10 +103,10 @@ public final class RobotHardware {
                 action = Action.MANUAL;
                 set(intake, -gamepad.left_stick_y * RobotConfig.INTAKE_POWER);
                 set(transfer, -gamepad.right_stick_y * RobotConfig.TRANSFER_POWER);
-                set(outtakeLeft, shootingEnabled
-                        ? gamepad.left_trigger * RobotConfig.OUTTAKE_LEFT_POWER : 0);
-                set(outtakeRight, shootingEnabled
-                        ? gamepad.right_trigger * RobotConfig.OUTTAKE_RIGHT_POWER : 0);
+                if (shootingEnabled) {
+                    set(outtakeLeft, gamepad.left_trigger * RobotConfig.OUTTAKE_LEFT_POWER);
+                    set(outtakeRight, gamepad.right_trigger * RobotConfig.OUTTAKE_RIGHT_POWER);
+                }
                 return;
             }
 
@@ -112,7 +115,8 @@ public final class RobotHardware {
                 action = Action.OFF;
             }
 
-            if (shootingEnabled && shootPressed) {
+            // A shoot press can interrupt intake/transfer, but cannot restart an active shot.
+            if (shootingEnabled && shootPressed && action != Action.SHOOT) {
                 startShoot(now);
             } else if (intakePressed && action == Action.OFF) {
                 startIntake(now);
@@ -142,8 +146,10 @@ public final class RobotHardware {
             StringBuilder missing = new StringBuilder();
             addMissing(missing, RobotConfig.INTAKE, intake);
             addMissing(missing, RobotConfig.TRANSFER, transfer);
-            addMissing(missing, RobotConfig.OUTTAKE_LEFT, outtakeLeft);
-            addMissing(missing, RobotConfig.OUTTAKE_RIGHT, outtakeRight);
+            if (shootingEnabled) {
+                addMissing(missing, RobotConfig.OUTTAKE_LEFT, outtakeLeft);
+                addMissing(missing, RobotConfig.OUTTAKE_RIGHT, outtakeRight);
+            }
             return missing.toString();
         }
 
@@ -153,6 +159,7 @@ public final class RobotHardware {
         }
 
         private void startIntake(double now) {
+            // Do not start intake alone if the transfer stage is unavailable.
             if (intake == null || transfer == null) {
                 stopOutputs();
                 action = Action.OFF;
@@ -165,6 +172,7 @@ public final class RobotHardware {
         }
 
         private void startShoot(double now) {
+            // Both outtake motors must be present for the automatic shooting preset.
             if (outtakeLeft == null || outtakeRight == null) {
                 stopOutputs();
                 action = Action.OFF;
@@ -195,9 +203,10 @@ public final class RobotHardware {
 
     private static void configure(DcMotorEx motor, DcMotorSimple.Direction direction) {
         if (motor == null) return;
+        motor.setPower(0);
+        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         motor.setDirection(direction);
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        motor.setPower(0);
     }
 
     private static void set(DcMotorEx motor, double power) {
