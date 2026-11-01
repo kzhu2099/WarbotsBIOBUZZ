@@ -143,6 +143,13 @@ public final class RobotHardware {
             return missing.toString();
         }
 
+        public String missingOuttakeMotors() {
+            StringBuilder missing = new StringBuilder();
+            addMissing(missing, RobotConfig.OUTTAKE_LEFT, outtakeLeft);
+            addMissing(missing, RobotConfig.OUTTAKE_RIGHT, outtakeRight);
+            return missing.toString();
+        }
+
         public void stop() {
             stopOutputs();
             action = Action.OFF;
