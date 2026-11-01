@@ -9,7 +9,7 @@ This GitHub repository contains the source code that is used to build an Android
 
 The team's current test OpModes, simple controls, mechanism presets, camera diagnostic, and hardware setup notes are in [docs/ROBOT_TESTS.md](docs/ROBOT_TESTS.md).
 
-The autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. Pedro is currently used for manual TeleOp testing only; path-following autonomous is not enabled.
+The autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. Pedro is currently used only for manual drivetrain testing; it does not use localization or path following.
 
 ## Requirements
 To use this Android Studio project, you will need Android Studio Narwhal 3 Feature Drop or later.
