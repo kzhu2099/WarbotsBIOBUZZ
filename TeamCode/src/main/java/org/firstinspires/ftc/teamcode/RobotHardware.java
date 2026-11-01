@@ -78,12 +78,8 @@ public final class RobotHardware {
 
             intake = configure(getMotor(hardwareMap, RobotConfig.INTAKE), RobotConfig.INTAKE_DIRECTION);
             transfer = configure(getMotor(hardwareMap, RobotConfig.TRANSFER), RobotConfig.TRANSFER_DIRECTION);
-            outtakeLeft = shootingEnabled
-                    ? configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT), RobotConfig.OUTTAKE_LEFT_DIRECTION)
-                    : null;
-            outtakeRight = shootingEnabled
-                    ? configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT), RobotConfig.OUTTAKE_RIGHT_DIRECTION)
-                    : null;
+            outtakeLeft = configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT), RobotConfig.OUTTAKE_LEFT_DIRECTION);
+            outtakeRight = configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT), RobotConfig.OUTTAKE_RIGHT_DIRECTION);
         }
 
         public void update(double now, Gamepad gamepad) {
