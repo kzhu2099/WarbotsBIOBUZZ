@@ -13,15 +13,10 @@ public final class RobotHardware {
     private final DcMotorEx backRight;
 
     public RobotHardware(HardwareMap hardwareMap) {
-        frontLeft = getMotor(hardwareMap, RobotConfig.FRONT_LEFT);
-        frontRight = getMotor(hardwareMap, RobotConfig.FRONT_RIGHT);
-        backLeft = getMotor(hardwareMap, RobotConfig.BACK_LEFT);
-        backRight = getMotor(hardwareMap, RobotConfig.BACK_RIGHT);
-
-        configure(frontLeft, RobotConfig.FRONT_LEFT_DIRECTION);
-        configure(frontRight, RobotConfig.FRONT_RIGHT_DIRECTION);
-        configure(backLeft, RobotConfig.BACK_LEFT_DIRECTION);
-        configure(backRight, RobotConfig.BACK_RIGHT_DIRECTION);
+        frontLeft = configure(getMotor(hardwareMap, RobotConfig.FRONT_LEFT), RobotConfig.FRONT_LEFT_DIRECTION);
+        frontRight = configure(getMotor(hardwareMap, RobotConfig.FRONT_RIGHT), RobotConfig.FRONT_RIGHT_DIRECTION);
+        backLeft = configure(getMotor(hardwareMap, RobotConfig.BACK_LEFT), RobotConfig.BACK_LEFT_DIRECTION);
+        backRight = configure(getMotor(hardwareMap, RobotConfig.BACK_RIGHT), RobotConfig.BACK_RIGHT_DIRECTION);
     }
 
     public boolean driveReady() {
@@ -58,10 +53,10 @@ public final class RobotHardware {
     }
 
     public void stopDrive() {
-        set(frontLeft, 0);
-        set(frontRight, 0);
-        set(backLeft, 0);
-        set(backRight, 0);
+        stopMotor(frontLeft);
+        stopMotor(frontRight);
+        stopMotor(backLeft);
+        stopMotor(backRight);
     }
 
     public static final class Mechanisms {
@@ -81,15 +76,14 @@ public final class RobotHardware {
         public Mechanisms(HardwareMap hardwareMap, boolean shootingEnabled) {
             this.shootingEnabled = shootingEnabled;
 
-            intake = getMotor(hardwareMap, RobotConfig.INTAKE);
-            transfer = getMotor(hardwareMap, RobotConfig.TRANSFER);
-            outtakeLeft = shootingEnabled ? getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT) : null;
-            outtakeRight = shootingEnabled ? getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT) : null;
-
-            configure(intake, RobotConfig.INTAKE_DIRECTION);
-            configure(transfer, RobotConfig.TRANSFER_DIRECTION);
-            configure(outtakeLeft, RobotConfig.OUTTAKE_LEFT_DIRECTION);
-            configure(outtakeRight, RobotConfig.OUTTAKE_RIGHT_DIRECTION);
+            intake = configure(getMotor(hardwareMap, RobotConfig.INTAKE), RobotConfig.INTAKE_DIRECTION);
+            transfer = configure(getMotor(hardwareMap, RobotConfig.TRANSFER), RobotConfig.TRANSFER_DIRECTION);
+            outtakeLeft = shootingEnabled
+                    ? configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT), RobotConfig.OUTTAKE_LEFT_DIRECTION)
+                    : null;
+            outtakeRight = shootingEnabled
+                    ? configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT), RobotConfig.OUTTAKE_RIGHT_DIRECTION)
+                    : null;
         }
 
         public void update(double now, Gamepad gamepad) {
@@ -159,7 +153,6 @@ public final class RobotHardware {
         }
 
         private void startIntake(double now) {
-            // Do not start intake alone if the transfer stage is unavailable.
             if (intake == null || transfer == null) {
                 stopOutputs();
                 action = Action.OFF;
@@ -172,7 +165,6 @@ public final class RobotHardware {
         }
 
         private void startShoot(double now) {
-            // Both outtake motors must be present for the automatic shooting preset.
             if (outtakeLeft == null || outtakeRight == null) {
                 stopOutputs();
                 action = Action.OFF;
@@ -186,10 +178,10 @@ public final class RobotHardware {
         }
 
         private void stopOutputs() {
-            set(intake, 0);
-            set(transfer, 0);
-            set(outtakeLeft, 0);
-            set(outtakeRight, 0);
+            stopMotor(intake);
+            stopMotor(transfer);
+            stopMotor(outtakeLeft);
+            stopMotor(outtakeRight);
         }
     }
 
@@ -201,16 +193,31 @@ public final class RobotHardware {
         }
     }
 
-    private static void configure(DcMotorEx motor, DcMotorSimple.Direction direction) {
-        if (motor == null) return;
-        motor.setPower(0);
-        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        motor.setDirection(direction);
-        motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    private static DcMotorEx configure(DcMotorEx motor, DcMotorSimple.Direction direction) {
+        if (motor == null) return null;
+        try {
+            motor.setPower(0);
+            motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            motor.setDirection(direction);
+            motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            return motor;
+        } catch (RuntimeException e) {
+            stopMotor(motor);
+            return null;
+        }
     }
 
     private static void set(DcMotorEx motor, double power) {
         if (motor != null) motor.setPower(Math.max(-1.0, Math.min(1.0, power)));
+    }
+
+    private static void stopMotor(DcMotorEx motor) {
+        if (motor == null) return;
+        try {
+            motor.setPower(0);
+        } catch (RuntimeException ignored) {
+            // Still attempt to stop the other motors.
+        }
     }
 
     private static void addMissing(StringBuilder out, String name, DcMotorEx motor) {
