@@ -90,6 +90,8 @@ There are no game-piece sensors. The code cannot confirm that a ball was collect
 
 ## Change only the values that are useful now
 
+All motors are explicitly configured for `RUN_WITHOUT_ENCODER` and brake at zero power. The robot uses open-loop, time-based motor power; it does not use drive-motor encoder positions for distance control.
+
 Edit `RobotConfig.java` for:
 - Hardware-map names.
 - Motor directions.
