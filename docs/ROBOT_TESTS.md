@@ -46,7 +46,7 @@ Uses the four drive motors directly, without Pedro or Pinpoint. It is the fallba
 
 ### TeleOp - No Shooting
 
-Uses only the four drive motors, intake, and transfer. The outtake motors are initialized and commanded to zero at startup and stop, but no button can activate them. This keeps them off even when switching from another OpMode. The right bumper and outtake triggers have no effect.
+Uses only the four drive motors, intake, and transfer. The outtake motors are initialized and commanded to zero at startup and stop, but no button can activate them. This keeps them off even when switching from another OpMode. If an outtake is missing or could not be initialized, telemetry warns that it could not be forced to zero. The right bumper and outtake triggers have no effect.
 
 ### Auto - Forward Test
 
