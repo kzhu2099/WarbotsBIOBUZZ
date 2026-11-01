@@ -34,7 +34,7 @@ public class TeleOpNoShoot extends OpMode {
         telemetry.addData("Drive", robot.driveReady() ? "ready" : "MISSING MOTORS");
         if (!robot.driveReady()) telemetry.addData("Missing drive motors", robot.missingDriveMotors());
         telemetry.addData("Mechanisms", mechanisms.action());
-        telemetry.addLine("Outtake motors are not mapped or controlled in this OpMode.");
+        telemetry.addLine("Outtake motors are held at zero and cannot be activated in this OpMode.");
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
