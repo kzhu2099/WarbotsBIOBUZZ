@@ -27,7 +27,11 @@ public class TeleOpManual extends OpMode {
     public void loop() {
         if (error == null) {
             try {
-                robot.drive(-RobotConfig.driveAxis(gamepad1.left_stick_y), RobotConfig.driveAxis(gamepad1.left_stick_x), RobotConfig.driveAxis(gamepad1.right_stick_x));
+                robot.drive(
+                        -RobotConfig.driveAxis(gamepad1.left_stick_y),
+                        RobotConfig.driveAxis(gamepad1.left_stick_x),
+                        RobotConfig.driveAxis(gamepad1.right_stick_x)
+                );
                 mechanisms.update(getRuntime(), gamepad2);
             } catch (RuntimeException e) {
                 error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
