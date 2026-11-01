@@ -11,7 +11,8 @@ public class TeleOpPedro extends OpMode {
     private RobotHardware driveHardware;
     private RobotHardware.Mechanisms mechanisms;
     private Follower follower;
-    private String error;
+    private String driveError;
+    private String mechanismError;
 
     @Override
     public void init() {
@@ -19,7 +20,7 @@ public class TeleOpPedro extends OpMode {
         mechanisms = new RobotHardware.Mechanisms(hardwareMap, true);
 
         if (!driveHardware.driveReady()) {
-            error = "Missing drive motors: " + driveHardware.missingDriveMotors();
+            driveError = "Missing drive motors: " + driveHardware.missingDriveMotors();
             return;
         }
 
@@ -27,32 +28,39 @@ public class TeleOpPedro extends OpMode {
             follower = new Follower(
                     new PinpointLocalizer(hardwareMap, RobotConfig.pinpointConfig()),
                     new Mecanum(hardwareMap, RobotConfig.mecanumConfig()),
-                    null // This test only uses manual drive; it never follows paths or holds a pose.
+                    null // Manual driving only; no path or hold controller is needed.
             );
         } catch (RuntimeException e) {
-            error = errorText(e);
+            driveError = errorText(e);
             driveHardware.stopDrive();
         }
     }
 
     @Override
     public void loop() {
-        mechanisms.update(getRuntime(), gamepad2);
+        if (mechanismError == null) {
+            try {
+                mechanisms.update(getRuntime(), gamepad2);
+            } catch (RuntimeException e) {
+                mechanismError = errorText(e);
+                mechanisms.stop();
+            }
+        }
 
-        if (follower != null && error == null) {
+        if (follower != null && driveError == null) {
             try {
                 follower.manual(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
                 follower.update();
                 telemetry.addData("Pedro", "ready");
                 telemetry.addData("Pinpoint pose", follower.pose());
             } catch (RuntimeException e) {
-                error = errorText(e);
+                driveError = errorText(e);
                 follower.stop();
                 driveHardware.stopDrive();
             }
         } else {
             driveHardware.stopDrive();
-            telemetry.addData("PEDRO STOPPED", error);
+            telemetry.addData("PEDRO STOPPED", driveError);
             telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drive motors.");
         }
 
@@ -60,6 +68,7 @@ public class TeleOpPedro extends OpMode {
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
+        if (mechanismError != null) telemetry.addData("MECHANISM ERROR", mechanismError);
         telemetry.update();
     }
 
