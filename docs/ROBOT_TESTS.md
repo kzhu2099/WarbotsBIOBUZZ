@@ -66,9 +66,9 @@ It does not drive, run mechanisms, read Hive state, or select a scoring target.
 
 - Left stick Y: forward/back.
 - Left stick X: strafe.
-- Right stick X: turn.
+- Right stick X: turn. Inputs below 0.05 are ignored to prevent stick drift.
 
-No field-centric toggle, precision-speed mode, auto-aim, or tracking assist is active.
+The INIT screen lists missing drive/mechanism hardware before the OpMode starts. No field-centric toggle, precision-speed mode, auto-aim, or tracking assist is active.
 
 ### Gamepad 2 (Pedro and Manual TeleOps)
 
