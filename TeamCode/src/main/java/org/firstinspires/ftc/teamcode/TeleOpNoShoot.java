@@ -16,6 +16,16 @@ public class TeleOpNoShoot extends OpMode {
     }
 
     @Override
+    public void init_loop() {
+        telemetry.addData("Drive motors", robot.driveReady() ? "ready" : robot.missingDriveMotors());
+        telemetry.addData("Intake/transfer", mechanisms.missingMotors().isEmpty()
+                ? "ready" : mechanisms.missingMotors());
+        telemetry.addData("Outtake zero", mechanisms.missingOuttakeMotors().isEmpty()
+                ? "both found and held at zero" : "WARNING: " + mechanisms.missingOuttakeMotors());
+        telemetry.update();
+    }
+
+    @Override
     public void loop() {
         if (error == null) {
             try {
