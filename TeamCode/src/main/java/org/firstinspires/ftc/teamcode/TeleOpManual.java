@@ -17,11 +17,16 @@ public class TeleOpManual extends OpMode {
 
     @Override
     public void loop() {
-        try {
-            robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-            mechanisms.update(getRuntime(), gamepad2);
-        } catch (RuntimeException e) {
-            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        if (error == null) {
+            try {
+                robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+                mechanisms.update(getRuntime(), gamepad2);
+            } catch (RuntimeException e) {
+                error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                robot.stopDrive();
+                mechanisms.stop();
+            }
+        } else {
             robot.stopDrive();
             mechanisms.stop();
         }
@@ -32,7 +37,7 @@ public class TeleOpManual extends OpMode {
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
-        if (error != null) telemetry.addData("HARDWARE ERROR", error);
+        if (error != null) telemetry.addData("HARDWARE ERROR - stopped", error);
         telemetry.update();
     }
 
