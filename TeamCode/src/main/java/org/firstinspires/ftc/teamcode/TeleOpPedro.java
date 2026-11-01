@@ -49,7 +49,7 @@ public class TeleOpPedro extends OpMode {
 
         if (follower != null && driveError == null) {
             try {
-                follower.manual(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+                follower.manual(-RobotConfig.driveAxis(gamepad1.left_stick_y), RobotConfig.driveAxis(gamepad1.left_stick_x), RobotConfig.driveAxis(gamepad1.right_stick_x));
                 follower.update();
                 telemetry.addData("Pedro", "ready");
                 telemetry.addData("Pinpoint pose", follower.pose());
