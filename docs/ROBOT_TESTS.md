@@ -12,11 +12,11 @@ The code is written for these configured devices:
 | Intake motor | `intake` | 1 | Both mechanism TeleOps and Pedro TeleOp |
 | Transfer motor | `transfer` | 1 | Both mechanism TeleOps and Pedro TeleOp |
 | Outtake motor | `outtakeLeft`, `outtakeRight` | 2 | Manual TeleOp and Pedro TeleOp only |
-| GoBilda Pinpoint | `odom` | 1 | Pedro TeleOp only |
+| GoBilda Pinpoint | Not mapped | 0 | Not used in this month's tests |
 | Webcam | `Webcam 2` | 1 | Camera test only |
 | Servo | None configured | **0** | Not used by this code |
 
-That is **8 DC motors, 0 servos, 1 Pinpoint, and 1 webcam** for the full set of tests. These names are inherited from the team's existing source code. The Control Hub configuration itself is not stored in this repository, so compare this table with the actual Driver Station Hardware page before running.
+That is **8 DC motors, 0 servos, 0 odometry devices, and 1 webcam** used by this code. These names are inherited from the team's existing source code. The Control Hub configuration itself is not stored in this repository, so compare this table with the actual Driver Station Hardware page before running.
 
 No OpMode in this code creates, maps, or commands a Servo. If the physical robot has a servo, it will stay unused.
 
@@ -30,15 +30,15 @@ No OpMode in this code creates, maps, or commands a Servo. If the physical robot
 | Auto - Forward Test | 4 drive | None |
 | Camera - Visibility Test | 0 | Webcam |
 
-The camera is not initialized by a drivetrain or mechanism OpMode. The Pinpoint is not initialized by the direct-drive TeleOps or the forward auto. This prevents a missing camera or Pinpoint from breaking tests that do not need those devices.
+The camera is not initialized by a drivetrain or mechanism OpMode. The Pinpoint is not initialized by any of these tests. This prevents a missing camera or Pinpoint from breaking tests that do not need those devices.
 
 ## OpModes and exactly what they do
 
 ### TeleOp - Pedro + Pinpoint
 
-Uses Pedro's Mecanum drivetrain, the Pinpoint localizer, and the four mechanism motors. Driving is robot-centric: left stick drives/ strafes; right stick X turns. It calls Pedro's manual-drive method and updates the follower each loop.
+Uses Pedro's Mecanum drivetrain and the four mechanism motors. It does not initialize a Pinpoint or camera. Pedro requires a Localizer object even for manual driving, so this test supplies a no-op localizer that contains no real position data. Driving is robot-centric: left stick drives/ strafes; right stick X turns. It calls Pedro's manual-drive method and updates the follower each loop.
 
-This does not follow paths, use Foresight, or make autonomous decisions. If a drive motor or Pinpoint fails to initialize, or a Pedro update throws an error, it writes zero power directly to the four drive motors and reports the error. The mechanism controls can still be used if the mechanism motors are present.
+This does not measure robot position, follow paths, use Foresight, or make autonomous decisions. If a drive motor fails to initialize or a Pedro update throws an error, it writes zero power directly to the four drive motors and reports the error. The mechanism controls can still be used if the mechanism motors are present.
 
 ### TeleOp - Manual (No Pedro)
 
@@ -97,7 +97,7 @@ Edit `RobotConfig.java` for:
 - Motor directions.
 - Intake, transfer, and outtake powers/times.
 - Forward-test power/time.
-- Pinpoint offsets/directions, only when measuring or testing the Pinpoint.
+
 
 Do not add field poses, path gains, Hive predictions, route lanes, camera-based choices, or servo abstractions until there is a tested feature that needs them.
 
