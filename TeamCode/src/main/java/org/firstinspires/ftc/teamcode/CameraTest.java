@@ -13,6 +13,12 @@ public class CameraTest extends OpMode {
     }
 
     @Override
+    public void init_loop() {
+        camera.addTelemetry(telemetry);
+        telemetry.update();
+    }
+
+    @Override
     public void loop() {
         camera.addTelemetry(telemetry);
         telemetry.update();
