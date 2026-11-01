@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 public class TeleOpNoShoot extends OpMode {
     private RobotHardware robot;
     private RobotHardware.Mechanisms mechanisms;
+    private String error;
 
     @Override
     public void init() {
@@ -16,8 +17,14 @@ public class TeleOpNoShoot extends OpMode {
 
     @Override
     public void loop() {
-        robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-        mechanisms.update(getRuntime(), gamepad2);
+        try {
+            robot.drive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+            mechanisms.update(getRuntime(), gamepad2);
+        } catch (RuntimeException e) {
+            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            robot.stopDrive();
+            mechanisms.stop();
+        }
 
         telemetry.addData("Drive", robot.driveReady() ? "ready" : "MISSING MOTORS");
         if (!robot.driveReady()) telemetry.addData("Missing drive motors", robot.missingDriveMotors());
@@ -26,6 +33,7 @@ public class TeleOpNoShoot extends OpMode {
         if (!mechanisms.missingMotors().isEmpty()) {
             telemetry.addData("Missing mechanism motors", mechanisms.missingMotors());
         }
+        if (error != null) telemetry.addData("HARDWARE ERROR", error);
         telemetry.update();
     }
 
