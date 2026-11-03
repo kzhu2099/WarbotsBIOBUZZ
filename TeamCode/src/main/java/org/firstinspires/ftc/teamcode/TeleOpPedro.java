@@ -1,15 +1,12 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.localization.Localizer;
-import com.pedropathing.localization.MotionState;
-import com.pedropathing.math.Pose;
-import com.pedropathing.math.Velocity;
 import com.pedropathing.revhub.drivetrains.Mecanum;
+import com.pedropathing.revhub.localizers.PinpointLocalizer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name = "TeleOp - PedroPathing", group = "BIOBUZZ Tests")
+@TeleOp(name = "TeleOp - Pedro + Pinpoint", group = "BIOBUZZ Tests")
 public class TeleOpPedro extends OpMode {
     private RobotHardware driveHardware;
     private RobotHardware.Mechanisms mechanisms;
@@ -29,9 +26,9 @@ public class TeleOpPedro extends OpMode {
 
         try {
             follower = new Follower(
-                    new NoLocalization(),
+                    new PinpointLocalizer(hardwareMap, RobotConfig.pinpointConfig()),
                     new Mecanum(hardwareMap, RobotConfig.mecanumConfig()),
-                    null
+                    null // This OpMode uses Pedro for manual drive, not path following.
             );
         } catch (RuntimeException e) {
             driveError = errorText(e);
@@ -43,10 +40,10 @@ public class TeleOpPedro extends OpMode {
     public void init_loop() {
         telemetry.addData("Drive motors", driveHardware.driveReady()
                 ? "ready" : driveHardware.missingDriveMotors());
-        telemetry.addData("Pedro drivetrain", follower == null ? "NOT READY: " + driveError : "ready");
+        telemetry.addData("Pedro + Pinpoint", follower == null ? "NOT READY: " + driveError : "ready");
         telemetry.addData("Mechanism motors", mechanisms.missingMotors().isEmpty()
-                ? "all found" : mechanisms.missingMotors());
-        telemetry.addLine("No camera or Pinpoint is needed for this test.");
+                ? "all found/configured" : mechanisms.missingMotors());
+        telemetry.addLine("Pinpoint is used for odometry; verify pod offsets and directions.");
         telemetry.update();
     }
 
@@ -69,7 +66,8 @@ public class TeleOpPedro extends OpMode {
                         RobotConfig.driveAxis(gamepad1.right_stick_x)
                 );
                 follower.update();
-                telemetry.addData("Pedro", "manual drive");
+                telemetry.addData("Pedro + Pinpoint", "manual drive");
+                telemetry.addData("Pose", follower.pose());
             } catch (RuntimeException e) {
                 driveError = errorText(e);
                 follower.stop();
@@ -77,7 +75,7 @@ public class TeleOpPedro extends OpMode {
             }
         } else {
             driveHardware.stopDrive();
-            telemetry.addData("PEDRO STOPPED", driveError);
+            telemetry.addData("DRIVE STOPPED", driveError);
             telemetry.addLine("Use TeleOp - Manual (No Pedro) to test the drive motors.");
         }
 
@@ -98,24 +96,5 @@ public class TeleOpPedro extends OpMode {
 
     private static String errorText(RuntimeException error) {
         return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
-    }
-
-    // Pedro requires a Localizer, but manual drive does not use position data.
-    private static final class NoLocalization implements Localizer {
-        private final Pose pose = new Pose(0, 0, 0);
-
-        @Override
-        public void setPose(Pose pose) {}
-
-        @Override
-        public MotionState state() {
-            return MotionState.ofVelocity(pose, Velocity.zero());
-        }
-
-        @Override
-        public void update() {}
-
-        @Override
-        public void reset() {}
     }
 }
