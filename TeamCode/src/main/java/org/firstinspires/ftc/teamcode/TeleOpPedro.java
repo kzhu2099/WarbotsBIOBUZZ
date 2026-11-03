@@ -70,8 +70,7 @@ public class TeleOpPedro extends OpMode {
                 telemetry.addData("Pose", follower.pose());
             } catch (RuntimeException e) {
                 driveError = errorText(e);
-                follower.stop();
-                driveHardware.stopDrive();
+                stopPedroDrive();
             }
         } else {
             driveHardware.stopDrive();
@@ -89,9 +88,20 @@ public class TeleOpPedro extends OpMode {
 
     @Override
     public void stop() {
-        if (follower != null) follower.stop();
-        if (driveHardware != null) driveHardware.stopDrive();
+        stopPedroDrive();
         if (mechanisms != null) mechanisms.stop();
+    }
+
+    private void stopPedroDrive() {
+        if (driveHardware != null) driveHardware.stopDrive();
+        if (follower != null) {
+            try {
+                follower.stop();
+            } catch (RuntimeException ignored) {
+                // Direct motor stops below do not depend on Pedro shutting down cleanly.
+            }
+        }
+        if (driveHardware != null) driveHardware.stopDrive();
     }
 
     private static String errorText(RuntimeException error) {
