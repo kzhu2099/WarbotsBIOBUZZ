@@ -64,8 +64,8 @@ public final class RobotHardware {
 
         private final DcMotorEx intake;
         private final DcMotorEx transfer;
-        private final DcMotorEx outtakeLeft;
-        private final DcMotorEx outtakeRight;
+        private final DcMotorEx ol;
+        private final DcMotorEx or;
         private final boolean shootingEnabled;
 
         private Action action = Action.OFF;
@@ -77,9 +77,11 @@ public final class RobotHardware {
             this.shootingEnabled = shootingEnabled;
 
             intake = configure(getMotor(hardwareMap, RobotConfig.INTAKE), RobotConfig.INTAKE_DIRECTION);
-            transfer = configure(getMotor(hardwareMap, RobotConfig.TRANSFER), RobotConfig.TRANSFER_DIRECTION);
-            outtakeLeft = configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_LEFT), RobotConfig.OUTTAKE_LEFT_DIRECTION);
-            outtakeRight = configure(getMotor(hardwareMap, RobotConfig.OUTTAKE_RIGHT), RobotConfig.OUTTAKE_RIGHT_DIRECTION);
+            transfer = RobotConfig.transferEnabled()
+                    ? configure(getMotor(hardwareMap, RobotConfig.TRANSFER), RobotConfig.TRANSFER_DIRECTION)
+                    : null;
+            ol = configure(getMotor(hardwareMap, RobotConfig.OL), RobotConfig.OL_DIRECTION);
+            or = configure(getMotor(hardwareMap, RobotConfig.OR), RobotConfig.OR_DIRECTION);
         }
 
         public void update(double now, Gamepad gamepad) {
@@ -94,8 +96,8 @@ public final class RobotHardware {
                 set(intake, -gamepad.left_stick_y * RobotConfig.INTAKE_POWER);
                 set(transfer, -gamepad.right_stick_y * RobotConfig.TRANSFER_POWER);
                 if (shootingEnabled) {
-                    set(outtakeLeft, gamepad.left_trigger * RobotConfig.OUTTAKE_LEFT_POWER);
-                    set(outtakeRight, gamepad.right_trigger * RobotConfig.OUTTAKE_RIGHT_POWER);
+                    set(ol, gamepad.left_trigger * RobotConfig.OL_POWER);
+                    set(or, gamepad.right_trigger * RobotConfig.OR_POWER);
                 }
                 return;
             }
@@ -114,16 +116,21 @@ public final class RobotHardware {
 
             if (action == Action.INTAKE && now - startedAt >= RobotConfig.INTAKE_SECONDS) {
                 set(intake, 0);
-                set(transfer, RobotConfig.TRANSFER_POWER);
-                action = Action.TRANSFER;
-                startedAt = now;
+                if (transfer != null) {
+                    set(transfer, RobotConfig.TRANSFER_POWER);
+                    action = Action.TRANSFER;
+                    startedAt = now;
+                } else {
+                    action = Action.OFF;
+                }
             } else if (action == Action.TRANSFER
                     && now - startedAt >= RobotConfig.TRANSFER_SECONDS) {
-                stopOutputs();
+                set(transfer, 0);
                 action = Action.OFF;
             } else if (action == Action.SHOOT
                     && now - startedAt >= RobotConfig.SHOOT_SECONDS) {
-                stopOutputs();
+                set(ol, 0);
+                set(or, 0);
                 action = Action.OFF;
             }
         }
@@ -135,18 +142,18 @@ public final class RobotHardware {
         public String missingMotors() {
             StringBuilder missing = new StringBuilder();
             addMissing(missing, RobotConfig.INTAKE, intake);
-            addMissing(missing, RobotConfig.TRANSFER, transfer);
+            if (RobotConfig.transferEnabled()) addMissing(missing, RobotConfig.TRANSFER, transfer);
             if (shootingEnabled) {
-                addMissing(missing, RobotConfig.OUTTAKE_LEFT, outtakeLeft);
-                addMissing(missing, RobotConfig.OUTTAKE_RIGHT, outtakeRight);
+                addMissing(missing, RobotConfig.OL, ol);
+                addMissing(missing, RobotConfig.OR, or);
             }
             return missing.toString();
         }
 
         public String missingOuttakeMotors() {
             StringBuilder missing = new StringBuilder();
-            addMissing(missing, RobotConfig.OUTTAKE_LEFT, outtakeLeft);
-            addMissing(missing, RobotConfig.OUTTAKE_RIGHT, outtakeRight);
+            addMissing(missing, RobotConfig.OL, ol);
+            addMissing(missing, RobotConfig.OR, or);
             return missing.toString();
         }
 
@@ -156,7 +163,7 @@ public final class RobotHardware {
         }
 
         private void startIntake(double now) {
-            if (intake == null || transfer == null) {
+            if (intake == null || (RobotConfig.transferEnabled() && transfer == null)) {
                 stopOutputs();
                 action = Action.OFF;
                 return;
@@ -168,14 +175,14 @@ public final class RobotHardware {
         }
 
         private void startShoot(double now) {
-            if (outtakeLeft == null || outtakeRight == null) {
+            if (ol == null || or == null) {
                 stopOutputs();
                 action = Action.OFF;
                 return;
             }
             stopOutputs();
-            set(outtakeLeft, RobotConfig.OUTTAKE_LEFT_POWER);
-            set(outtakeRight, RobotConfig.OUTTAKE_RIGHT_POWER);
+            set(ol, RobotConfig.OL_POWER);
+            set(or, RobotConfig.OR_POWER);
             action = Action.SHOOT;
             startedAt = now;
         }
@@ -183,12 +190,13 @@ public final class RobotHardware {
         private void stopOutputs() {
             stopMotor(intake);
             stopMotor(transfer);
-            stopMotor(outtakeLeft);
-            stopMotor(outtakeRight);
+            stopMotor(ol);
+            stopMotor(or);
         }
     }
 
     private static DcMotorEx getMotor(HardwareMap map, String name) {
+        if (name == null || name.trim().isEmpty()) return null;
         try {
             return map.get(DcMotorEx.class, name);
         } catch (RuntimeException e) {
@@ -219,7 +227,7 @@ public final class RobotHardware {
         try {
             motor.setPower(0);
         } catch (RuntimeException ignored) {
-            // Still attempt to stop the other motors.
+            // Still try to stop the other motors.
         }
     }
 
