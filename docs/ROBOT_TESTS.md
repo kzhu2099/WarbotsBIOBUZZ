@@ -1,66 +1,55 @@
 # BIOBUZZ robot code: current hardware tests
 
-This is a small bring-up codebase for the current month. It is not a scoring-autonomous framework.
+This is a small bring-up codebase for the current testing stage. It is not a future autonomous framework.
 
-## Hardware inventory
+## Hardware configuration
 
-The code uses the following configured devices:
+The software has editable names for the devices it currently knows about. The names are not proof that every device is physically installed; compare them with the Driver Station Hardware page.
 
-| Device | Config name | Count | Used by |
-|---|---|---:|---|
-| Drive motor | `fl`, `fr`, `bl`, `br` | 4 | Drive TeleOps and forward auto |
-| Intake motor | `intake` | 1 | Mechanism TeleOps |
-| Transfer motor | `transfer` | 1 | Mechanism TeleOps |
-| Outtake motors | `outtakeLeft`, `outtakeRight` | 2 | Manual/Pedro TeleOps; held at zero in No Shooting |
-| GoBilda Pinpoint | Not mapped | 0 | Not used |
-| Webcam | `Webcam 2` | 1 | Camera test only |
-| Servo | None configured | **0** | Not used |
-
-That is **8 DC motors, 0 servo outputs, 0 odometry devices, and 1 webcam** used by this code. The names are inherited from the team's existing source code; the Control Hub Hardware configuration is not stored in this repository. Compare this table with the actual Driver Station Hardware page before running.
-
-No OpMode creates or commands a Servo. A servo on the physical robot, if present, is unused by this code.
-
-## Which devices each OpMode touches
-
-| Driver Station OpMode | Motor use | Other hardware |
+| Device | Config name | Status in this code |
 |---|---|---|
-| TeleOp - PedroPathing | All 8 motors | None |
-| TeleOp - Manual (No Pedro) | All 8 motors | None |
-| TeleOp - No Shooting | All 8 are initialized and zeroed; only 6 can run | Outtakes held at zero |
-| Auto - Forward Test | 4 drive motors | None |
-| Camera - Visibility Test | 0 motors | Webcam |
+| Four drive motors | `fl`, `fr`, `bl`, `br` | Required for every drive test |
+| Intake motor | `intake` | Used by mechanism TeleOps if present |
+| Transfer motor | Blank by default | Optional and disabled until a real motor is configured |
+| Left outtake motor | `ol` | Used by shooting preset; harmlessly reported missing if not installed |
+| Right outtake motor | `or` | Used by shooting preset; harmlessly reported missing if not installed |
+| GoBilda Pinpoint + odometry pods | `odom` | Used by Pedro + Pinpoint TeleOp |
+| Webcam | `Webcam 2` | Camera test only |
+| Servos | No servo names configured | No servo is assumed or commanded yet |
 
-The camera is not opened by any drive or mechanism OpMode. No OpMode opens the Pinpoint. A missing camera therefore cannot break a drivetrain test.
+Do not treat this table as a final physical inventory. The actual number of installed mechanism motors and servos must come from the assembled robot and its Driver Station configuration. This code intentionally does not invent servo names or servo jobs.
 
-## OpModes and exactly what they do
+## OpModes and hardware used
 
-### TeleOp - PedroPathing
+| Driver Station OpMode | Hardware used |
+|---|---|
+| TeleOp - Pedro + Pinpoint | Four drive motors, Pinpoint/odometry pods, configured mechanism motors |
+| TeleOp - Manual (No Pedro) | Four drive motors, configured mechanism motors |
+| TeleOp - No Shooting | Four drive motors, intake, optional transfer; outtakes are initialized and held at zero |
+| Auto - Forward Test | Four drive motors only |
+| Camera - Visibility Test | Webcam only |
 
-Uses Pedro's Mecanum drivetrain and the four mechanism motors. It does not initialize a Pinpoint or camera. Pedro requires a Localizer object even for manual driving, so this test supplies a no-op localizer. That localizer contains no real position data.
+Camera is not initialized by any drivetrain or mechanism OpMode. Pinpoint is used by Pedro + Pinpoint, but not by direct-drive TeleOps or the simple forward test.
 
-Driving is robot-centric: left stick drives and strafes; right stick X turns. Pedro's manual-drive method receives the stick values and the follower is updated each loop.
+## Pedro + Pinpoint
 
-This tests Pedro's manual drivetrain path only. It does not measure robot position, follow paths, use Foresight, or make autonomous decisions. If a drive motor fails to initialize or a Pedro update throws an error, the code writes zero power directly to all four drive motors and reports the error.
+This mode uses the real GoBilda Pinpoint localizer with the two odometry pods. The device name, pod offsets, and directions are configured in `RobotConfig.java`.
+
+The offset values currently carried over from the team's earlier configuration are starting values, not verified measurements. Confirm that the pod mounting orientation matches those directions and remeasure offsets from the robot's tracking center. The pose telemetry is only useful after this check.
+
+This mode calls Pedro manual drive and updates the Follower. It does not follow autonomous paths or use Foresight. Do not interpret this mode as path-following being tuned.
+
+If Pinpoint or Pedro fails during initialization/update, the OpMode reports the failure and directly commands zero power to the four drive motors. Use TeleOp - Manual (No Pedro) to separate drivetrain motor testing from localization/Pedro problems.
+
+## Direct-drive TeleOps
 
 ### TeleOp - Manual (No Pedro)
 
-Uses the four drive motors directly, without Pedro, Pinpoint, or camera. It also controls intake, transfer, and both outtake motors. Use this to check that the motors and wheel directions work independently of Pedro.
+Uses the four drive motors directly and does not initialize Pinpoint or the camera. It is the basic fallback for checking the mecanum wheels. It also offers manual and timed mechanism testing.
 
 ### TeleOp - No Shooting
 
-Uses direct drive, intake, and transfer. The two outtake motors are initialized and commanded to zero at startup and stop, but no button in this OpMode can run them. Telemetry warns if either outtake motor could not be initialized and therefore could not be forced to zero.
-
-### Auto - Forward Test
-
-Uses only the four drive motors. At start, it drives forward at `AUTO_FORWARD_POWER` for `AUTO_FORWARD_TIME_MS`, then stops. It does not use encoders, a Pinpoint, cameras, mechanisms, or Pedro.
-
-This is a motion check, not an autonomous scoring routine. It does not guarantee LEAVE and does not attempt PARK.
-
-### Camera - Visibility Test
-
-Uses only the configured webcam. The Driver Station camera stream shows AprilTag detections and color outlines for yellow, red, and blue objects. BIOBUZZ Manual TU07 §9.8, page 72, describes yellow Pollen and red/blue Nectar. Color outlines are a visibility aid, not reliable game-piece classification.
-
-It does not drive, run mechanisms, read Hive state, or select a scoring target.
+Uses the four drive motors and intake. Transfer only runs when its config name is set and the motor is found. Both outtake motors are looked up and set to zero so they cannot be left running from a prior OpMode. This mode never sends nonzero power to either outtake.
 
 ## Gamepad controls
 
@@ -70,53 +59,70 @@ It does not drive, run mechanisms, read Hive state, or select a scoring target.
 - Left stick X: strafe.
 - Right stick X: turn.
 
-Inputs smaller than 0.05 in magnitude are ignored to prevent stick drift. There is no field-centric toggle, precision-speed mode, auto-aim, or tracking assist.
+Inputs smaller than 0.05 are ignored to prevent stick drift. There is no field-centric toggle, precision-speed mode, auto-aim, or tracking assist.
 
-The INIT screen reports whether the expected drive and mechanism motors were found before the OpMode starts.
+### Gamepad 2 (Pedro and Manual TeleOps)
 
-### Gamepad 2 (PedroPathing and Manual TeleOps)
+- Left bumper: run intake for the configured time. If a transfer motor is enabled and found, it runs after intake.
+- Right bumper: run both outtake motors for the configured shooting time.
+- Hold Back: manual motor test. Left stick Y runs intake, right stick Y runs transfer if configured, left trigger runs `ol`, and right trigger runs `or`.
 
-- Left bumper: run intake, then transfer automatically.
-- Right bumper: run both outtake motors for the shooting preset.
-- Hold Back: direct motor test. Left stick Y runs intake, right stick Y runs transfer, left trigger runs the left outtake, and right trigger runs the right outtake.
+### No-shoot TeleOp
 
-### Gamepad 2 (No Shooting TeleOp)
+- Left bumper: run intake, then optional transfer.
+- Hold Back: manually test intake and optional transfer.
+- Outtake motors remain at zero regardless of gamepad input.
 
-- Left bumper: run intake, then transfer.
-- Hold Back: test intake and transfer.
-- Outtake motors stay at zero. The right bumper and outtake triggers have no effect.
+## Optional transfer behavior
 
-## What the mechanism presets do and do not do
+`RobotConfig.TRANSFER` is blank by default. With this setting:
+- Intake works by itself for `INTAKE_SECONDS`, then stops.
+- No transfer motor is looked up or required.
+- The driver can still use intake in the no-shoot and manual TeleOps.
 
-- Intake runs for `INTAKE_SECONDS`, then stops and runs transfer for `TRANSFER_SECONDS`.
-- Shooting runs both outtake motors together for `SHOOT_SECONDS`.
-- A new shoot press can interrupt intake or transfer. Pressing shoot again while a shot is running does not restart its timer.
-- Intake/transfer requires both motors. Automatic shooting requires both outtake motors.
-- Hold Back bypasses the presets for individual motor checks. It can run one outtake motor even if the other is missing. Use this only for controlled bench testing.
+When a real transfer motor is installed and configured, enter its exact Driver Station name in `RobotConfig.TRANSFER`. Then the intake preset runs intake first and transfer second. If a nonblank transfer name is configured but that device is missing, the preset will not start and telemetry reports the missing motor.
 
-There are no game-piece sensors. The code cannot confirm that a piece was collected, transferred, or launched. Shooting assumes a piece is already in the shooter; it does not automatically run transfer, aim, or wait for camera confirmation.
+No code should assume a conveyor, transfer motor, servo, or sensor exists until it is physically installed and given a real hardware-map name.
 
-## Change only the values that are useful now
+## Mechanism behavior and limits
 
-All mapped motors are set to `RUN_WITHOUT_ENCODER` and BRAKE at zero power. These tests use open-loop motor power; they do not measure distance from drive-motor encoders.
+- Intake and transfer are timed. There are no sensors confirming that a game piece moved.
+- The shooting preset runs `ol` and `or` together for `SHOOT_SECONDS`.
+- Automatic shooting requires both outtake motors to be present. Manual override can test either outtake independently.
+- Shooting assumes a piece is already at the shooter. It does not automatically transfer, aim, or wait for camera confirmation.
+- Powers and times are initial settings. Tune them with the robot secured and test one mechanism at a time.
 
-Edit `RobotConfig.java` for:
-- Hardware-map names.
+## Values to customize
+
+Edit `RobotConfig.java`:
+- Hardware names (use the exact names configured on the Driver Station).
 - Motor directions.
 - Joystick deadband.
-- Intake, transfer, and outtake powers/times.
-- Forward-test power/time.
+- Intake/outtake powers and times.
+- Transfer name and power/time only when a transfer motor is actually installed.
+- Pinpoint device name, pod offsets, and pod directions after measuring the actual mounting.
+- Forward-test power and time.
 
-Do not add field poses, path gains, Hive predictions, route lanes, camera-based choices, Pinpoint settings, or servo abstractions until a tested feature needs them.
+Servo configuration should be added only when the physical servo, its port/name, direction or positions, and job are known. There is no placeholder servo logic.
+
+## Motor behavior
+
+All mapped DC motors are set to `RUN_WITHOUT_ENCODER` and BRAKE at zero power. The simple tests use open-loop motor power. Pinpoint provides odometry in the Pedro TeleOp; drive-motor encoder distance is not used.
 
 ## Hardware failure behavior
 
-- If any drive motor is missing or fails configuration, direct-drive and auto code sends zero to all available drive motors. It does not try to drive on three wheels.
-- Pedro initializes only if all four drive motors are available. If its update fails, the code writes zero power directly to all four drive motors.
-- If either intake or transfer is missing, the automatic intake/transfer preset will not start.
-- If either outtake motor is missing, the automatic shooting preset will not start.
-- The No Shooting mode initializes and zeros the outtake motors but never activates them. It warns if an outtake cannot be initialized and zeroed.
-- A missing webcam affects only Camera - Visibility Test.
+- If one of the four drive motors is missing or fails configuration, the drive modes do not drive on the remaining three.
+- If Pedro/Pinpoint initialization or update fails, the Pedro mode writes zero power directly to all drive motors.
+- Intake preset requires an intake motor. If transfer is enabled, it also requires the configured transfer motor. If transfer is blank, intake runs alone.
+- Automatic shooting requires both `ol` and `or`.
+- No-shoot mode holds available outtake motors at zero and warns if they cannot be initialized.
+- A missing webcam affects only the camera diagnostic.
+
+## Camera test
+
+Camera - Visibility Test uses only the configured webcam. The Driver Station stream shows AprilTag detections and yellow/red/blue color blobs. BIOBUZZ Manual TU07 §9.8, p. 72, describes yellow Pollen and red/blue Nectar. Color detection is only a visual check, not authoritative game-piece classification.
+
+The camera does not change Hive state or control the robot.
 
 ## BIOBUZZ scoring reference
 
@@ -125,16 +131,16 @@ BIOBUZZ Manual TU07:
 - Table 10-2, page 89: LEAVE is worth 3 AUTO points. PARK is worth 5 AUTO points and 5 TELEOP points.
 - §10.5, page 84: LEAVE and AUTO PARK are assessed at the end of AUTO; TELEOP PARK is assessed at the end of the MATCH.
 
-The forward test only checks forward motion. Do not treat it as a Leave-and-Park routine.
+Auto - Forward Test is a simple motion check. It does not guarantee LEAVE and does not attempt PARK.
 
 ## First hardware test
 
-1. Compare the Hardware Inventory table with the actual Driver Station Hardware page.
+1. Compare configured hardware names with the actual Driver Station Hardware page.
 2. Raise and secure the robot so no wheel or mechanism can contact the floor or a person.
-3. Run Auto - Forward Test at the configured low power and time. Confirm wheel direction and stop immediately if any wheel runs the wrong way.
-4. Test TeleOp - Manual (No Pedro) for forward, backward, left/right strafe, and turning.
-5. Hold Back and test each mechanism motor individually. Keep hands clear.
-6. Test the intake/transfer preset, then shooting, only after each motor turns in the correct direction.
-7. Run TeleOp - No Shooting and confirm no outtake motor runs.
-8. Test TeleOp - PedroPathing after direct drive works. It does not require odometry.
-9. Run Camera - Visibility Test separately and inspect the Driver Station camera stream.
+3. Run Auto - Forward Test at the configured low power and time; verify wheel direction.
+4. Test TeleOp - Manual (No Pedro) in each drive direction.
+5. Hold Back and test each installed mechanism motor separately.
+6. Test intake-only operation with transfer left blank. Configure transfer only if/when that physical motor exists.
+7. Test the shooting preset only after confirming `ol` and `or` are the correct outtake ports and spin safely.
+8. Test Pedro + Pinpoint; check odometry direction and measured offsets before trusting pose.
+9. Run Camera - Visibility Test separately.
