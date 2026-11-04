@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-/** Select one motor, hold A, and move the left stick to test only that motor. */
+/** Select a motor with the D-pad. Hold A and move the left stick to run it. */
 @TeleOp(name = "Motor - Individual Test", group = "BIOBUZZ Tests")
 public class IndividualMotorTest extends OpMode {
     private final String[] names = {
@@ -58,7 +58,7 @@ public class IndividualMotorTest extends OpMode {
         if (gamepad1.dpadRightWasPressed()) selected = (selected + 1) % names.length;
         if (gamepad1.dpadLeftWasPressed()) selected = (selected + names.length - 1) % names.length;
 
-        // Stop every motor first. Only the selected motor may be powered below.
+        // Zero every motor before powering the selected one.
         stopAll();
 
         DcMotorEx motor = motors[selected];

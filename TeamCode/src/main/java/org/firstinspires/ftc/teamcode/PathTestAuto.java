@@ -17,7 +17,7 @@ public class PathTestAuto extends OpMode {
     private enum Lane { INSIDE_HIVE, OUTSIDE_HIVE }
     private enum HiveSide { AUDIENCE, OPPOSITE_AUDIENCE }
 
-    // INIT choices.
+    // Choices shown during INIT.
     private Start start = Start.SIDE_WALL;
     private Flower flower = Flower.LEFT_WALL;
     private Lane lane = Lane.OUTSIDE_HIVE;
@@ -92,7 +92,7 @@ public class PathTestAuto extends OpMode {
         double halfLength = RobotConfig.ROBOT_LENGTH_INCHES / 2.0;
         double inset = RobotConfig.CORNER_INSET_INCHES;
 
-        // Explicit chassis-center starting poses. These are the team's three presets.
+        // Start poses are for the center of the chassis.
         if (start == Start.SIDE_WALL && redAlliance) {
             startPose = poses.of(halfLength, field / 2.0, 0.0);
         } else if (start == Start.SIDE_WALL) {
@@ -107,7 +107,7 @@ public class PathTestAuto extends OpMode {
             startPose = poses.of(field - halfWidth - inset, field - halfLength, -Math.PI / 2.0);
         }
 
-        // Hive/Cell coordinates below are inherited estimates; verify them against field CAD.
+        // Check these Hive and Cell estimates against the field CAD.
         double center = field / 2.0;
         double audienceY = center - RobotConfig.CELL_SEPARATION_INCHES / 2.0;
         double oppositeY = center + RobotConfig.CELL_SEPARATION_INCHES / 2.0;
@@ -119,7 +119,7 @@ public class PathTestAuto extends OpMode {
         hivePose = poses.of(hiveApproachX,
                 hiveSide == HiveSide.AUDIENCE ? audienceY : oppositeY, hiveHeading);
 
-        // Flower centers are estimates. The approach distance must be measured.
+        // Flower positions are estimates; measure the approach distance.
         double standoff = RobotConfig.FLOWER_STANDOFF_INCHES;
         if (flower == Flower.LEFT_WALL) {
             flowerPose = poses.of(standoff, RobotConfig.FLOWER_LEFT_Y_INCHES, Math.PI);
@@ -131,7 +131,7 @@ public class PathTestAuto extends OpMode {
             flowerPose = poses.of(RobotConfig.FLOWER_BOTTOM_X_INCHES, standoff, -Math.PI / 2.0);
         }
 
-        // Lane points are set for Red in RobotConfig; Blue reflects across the field centerline.
+        // Lane points are entered for Red. Blue reflects X across the field centerline.
         if (lane == Lane.INSIDE_HIVE && redAlliance) {
             lanePose = poses.of(RobotConfig.INSIDE_LANE_X, RobotConfig.INSIDE_LANE_Y, hiveHeading);
         } else if (lane == Lane.INSIDE_HIVE) {
@@ -142,7 +142,7 @@ public class PathTestAuto extends OpMode {
             lanePose = poses.of(field - RobotConfig.OUTSIDE_LANE_X, RobotConfig.OUTSIDE_LANE_Y, hiveHeading);
         }
 
-        // Pause at Hive = no preload/final shot. Pause at Flower = no intake.
+        // These pauses replace the two shots and the intake step.
         route = new Pose[]{lanePose, hivePose, flowerPose, lanePose, hivePose};
         routeNames = new String[]{"Lane", "Hive - preload pause", "Flower - intake pause",
                                   "Lane - return", "Hive - final pause"};

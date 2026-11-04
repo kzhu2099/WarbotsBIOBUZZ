@@ -11,7 +11,7 @@ import org.firstinspires.ftc.teamcode.pedro.procedures.MecanumTuner;
 import org.firstinspires.ftc.teamcode.pedro.procedures.PinpointTuner;
 import org.firstinspires.ftc.teamcode.pedro.procedures.Tests;
 
-/** Registers Pedro's setup and verification procedures for AutoTune. */
+/** Adds the Pedro tuning procedures to AutoTune. */
 public final class Tuning {
     private Tuning() {}
 
