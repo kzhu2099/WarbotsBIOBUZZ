@@ -6,6 +6,8 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.teamcode.pedro.Constants;
+
 import java.util.StringJoiner;
 
 public final class RobotHardware {
@@ -15,10 +17,10 @@ public final class RobotHardware {
     private final DcMotorEx br;
 
     public RobotHardware(HardwareMap map) {
-        fl = setup(map, RobotConfig.FRONT_LEFT, RobotConfig.FRONT_LEFT_DIRECTION);
-        fr = setup(map, RobotConfig.FRONT_RIGHT, RobotConfig.FRONT_RIGHT_DIRECTION);
-        bl = setup(map, RobotConfig.BACK_LEFT, RobotConfig.BACK_LEFT_DIRECTION);
-        br = setup(map, RobotConfig.BACK_RIGHT, RobotConfig.BACK_RIGHT_DIRECTION);
+        fl = setup(map, Constants.FRONT_LEFT_NAME, Constants.FRONT_LEFT_DIRECTION);
+        fr = setup(map, Constants.FRONT_RIGHT_NAME, Constants.FRONT_RIGHT_DIRECTION);
+        bl = setup(map, Constants.BACK_LEFT_NAME, Constants.BACK_LEFT_DIRECTION);
+        br = setup(map, Constants.BACK_RIGHT_NAME, Constants.BACK_RIGHT_DIRECTION);
     }
 
     public boolean driveReady() {
@@ -27,10 +29,10 @@ public final class RobotHardware {
 
     public String missingDriveMotors() {
         StringJoiner missing = new StringJoiner(", ");
-        addMissing(missing, RobotConfig.FRONT_LEFT, fl);
-        addMissing(missing, RobotConfig.FRONT_RIGHT, fr);
-        addMissing(missing, RobotConfig.BACK_LEFT, bl);
-        addMissing(missing, RobotConfig.BACK_RIGHT, br);
+        addMissing(missing, Constants.FRONT_LEFT_NAME, fl);
+        addMissing(missing, Constants.FRONT_RIGHT_NAME, fr);
+        addMissing(missing, Constants.BACK_LEFT_NAME, bl);
+        addMissing(missing, Constants.BACK_RIGHT_NAME, br);
         return missing.toString();
     }
 
