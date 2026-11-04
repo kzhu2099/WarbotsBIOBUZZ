@@ -1,9 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.revhub.drivetrains.Mecanum;
-import com.pedropathing.revhub.localizers.PinpointLocalizer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 @TeleOp(name = "TeleOp - Pedro + Pinpoint", group = "BIOBUZZ Tests")
@@ -25,11 +24,7 @@ public class TeleOpPedro extends OpMode {
         }
 
         try {
-            follower = new Follower(
-                    new PinpointLocalizer(hardwareMap, RobotConfig.pinpointConfig()),
-                    new Mecanum(hardwareMap, RobotConfig.mecanumConfig()),
-                    null // This OpMode uses Pedro for manual drive, not path following.
-            );
+            follower = Constants.create(hardwareMap);
         } catch (RuntimeException e) {
             driveError = errorText(e);
             driveHardware.stopDrive();
