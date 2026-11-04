@@ -1,95 +1,102 @@
-# BIOBUZZ robot code: current tests
+# BIOBUZZ robot tests
 
-This is a small bring-up codebase for the current testing stage. Each Driver Station test has its own OpMode file. For an explanation of how the robot software works and how to use PedroPathing, see [PEDRO_AND_ROBOT_GUIDE.md](PEDRO_AND_ROBOT_GUIDE.md).
+This file describes the current test OpModes and the hardware checks needed before using them. For the complete code layout and PedroPathing configuration workflow, see [PEDRO_AND_ROBOT_GUIDE.md](PEDRO_AND_ROBOT_GUIDE.md).
 
-## Start here
+## Configuration locations
 
-- `RobotConfig.java`: hardware names, motor directions, powers/times, measured robot dimensions, lane waypoints, and Pinpoint values.
-- `TeleOpManual.java`: simplest drive-and-mechanism control.
-- `RobotHardware.java`: drive motor setup, mecanum powers, and timed/manual mechanism controls.
-- `TeleOpPedro.java`: manual Pedro drive with the real Pinpoint localizer.
-- `PathTestAuto.java`: path-only test. It does not use intake, transfer, outtake, or a camera.
-- `IndividualMotorTest.java`: one motor at a time.
-- `CameraTest.java`: AprilTag-only camera check.
-
-## Hardware names
-
-Names must match the Driver Station Hardware page.
-
-| Device | Name in code | Notes |
-|---|---|---|
-| Drive motors | `fl`, `fr`, `bl`, `br` | All four are required to drive |
-| Intake motor | `intake` | Used by mechanism TeleOps and individual motor test |
-| Transfer motor | Blank in `RobotConfig` | Optional; disabled until configured |
-| Left outtake | `ol` | Used by shooting controls and individual motor test |
-| Right outtake | `or` | Used by shooting controls and individual motor test |
-| GoBilda Pinpoint | `odom` | Used by Pedro TeleOp and Path Test |
-| Webcam | `cam1` in code | Driver Station device name is `Webcam 2` |
-
-Do not treat this list as a complete physical inventory. Check the assembled robot and the Driver Station configuration.
-
-## OpModes
-
-| Driver Station name | What it tests |
+| File | Settings |
 |---|---|
-| TeleOp - Manual (No Pedro) | Direct mecanum drive and mechanism controls |
-| TeleOp - Pedro + Pinpoint | Pedro manual drive using Pinpoint odometry and mechanism controls |
-| TeleOp - No Shooting | Direct drive and intake; outtakes stay at zero |
-| Auto - Forward Test | Short, constant-power forward movement |
-| Auto - Path Test (No Mechanisms) | Pedro path following only; timed pauses replace mechanism actions |
-| Motor - Individual Test | One selected motor at a time |
-| Camera - AprilTag Test | Webcam 2 live view and AprilTag detections only |
+| `pedro/Constants.java` | Pedro drive motor names/directions, Pinpoint hardware name/pod type/offsets/directions/units, Foresight config, and calibration-ready flags |
+| `RobotConfig.java` | Intake/transfer/outtake names and directions, mechanism powers/times, joystick deadband, robot dimensions, field coordinates, and path-test timing |
+| `pedro/Tuning.java` | Mecanum, Pinpoint, Foresight, and Tests AutoTune registrations |
+
+The current Pedro motor names are `fl`, `fr`, `bl`, and `br`; the Pinpoint name is `odom`. They are starting values and must match the Driver Station Hardware page. Pedro calibration values must be generated for this robot and saved in `pedro/Constants.java`.
+
+## Hardware names in RobotConfig.java
+
+| Device | Code name | Notes |
+|---|---|---|
+| Intake motor | `intake` | Mechanism TeleOps |
+| Transfer motor | Blank by default | Optional; no lookup until configured |
+| Left outtake | `ol` | Paired shooting control |
+| Right outtake | `or` | Paired shooting control |
+| Webcam | `cam1` in code | Driver Station name is `Webcam 2` |
+
+This table is not a complete physical inventory. Check the assembled robot and Driver Station configuration.
+
+## Driver Station OpModes
+
+| Driver Station name | Function |
+|---|---|
+| TeleOp - Manual (No Pedro) | Direct drive and mechanism controls |
+| TeleOp - Pedro + Pinpoint | Pedro manual drive, Pinpoint pose telemetry, and mechanism controls; requires tuned Pedro configs |
+| TeleOp - No Shooting | Direct drive and intake/optional transfer; outtakes remain at zero |
+| Auto - Forward Test | Short, constant-power drivetrain check |
+| Auto - Path Test (No Mechanisms) | Pedro paths only; pauses replace mechanism actions |
+| Motor - Individual Test | Selects and powers one mapped motor |
+| Camera - AprilTag Test | Camera and AprilTag diagnostics only |
+
+## Pedro tuning and path readiness
+
+Run Pedro setup in this order:
+
+1. Mecanum Tuner: verify the four motor names and directions. Update the four shared motor-name/direction values at the top of `Constants.java`; `drivetrainConfig` is built from those values and the direct-drive tests use them too. Then set `DRIVETRAIN_CONFIG_TUNED = true`.
+2. Pinpoint Tuner: select the actual odometry pod type and follow the direction/offset procedure. Replace the whole placeholder `localizerConfig` initializer with the complete generated config, including pod type and units; then set `LOCALIZER_CONFIG_TUNED = true`.
+3. Foresight Tuner: run only after the drivetrain and localizer are correct. Paste the generated result into `Constants.foresightConfig`.
+4. Tests procedure: check the localizer, drivetrain, and tuned Follower.
+
+Pedro's tuning page is `http://192.168.43.1:10158` when connected to the Robot Controller during setup. Read the [Pedro tuning guide](https://pedropathing.com/docs/pathing/tuning).
+
+AutoTune is a setup/calibration tool, not a Match-time service. During a Match, FTC 2026-27 rule R704.C requires programming laptops and other devices to be disconnected from the Robot Controller Wi-Fi network. Rule R704.D limits software streaming on that network to allowed robot control/debugging/telemetry through the FTC Driver Station Application and prohibits additional logging/streaming services and continuous video. Run AutoTune during pit/practice setup, then disconnect the laptop before Match play. See the [current BIOBUZZ Competition Manual](https://ftc-resources.firstinspires.org/ftc/game).
+
+`Constants.create()` will not create the robot Follower until both calibration flags are true and a Foresight config has been pasted. TeleOp - Manual (No Pedro) remains available for basic manual driving before Pedro setup is complete.
 
 ## Path-only autonomous test
 
-`PathTestAuto.java` uses the Pedro Follower with the Pinpoint localizer. It follows a fixed list of waypoints and never initializes the mechanism controller or camera.
-
-The route is intentionally visible in the file:
+`PathTestAuto.java` follows these waypoints:
 
 1. Start pose to the selected lane point.
-2. Lane point to the selected Hive approach, then pause instead of shooting the preload.
+2. Lane point to the selected Hive approach, then pause instead of shooting.
 3. Hive approach to the selected Flower approach, then pause instead of intaking.
-4. Return through the selected lane point to the same Hive approach, then pause instead of shooting again.
+4. Return via the lane point to the Hive approach, then pause instead of shooting again.
 
-This is a path test, not a scoring autonomous. It does not run the intake, transfer, or outtake, and does not verify that a game piece was collected or scored.
+It does not initialize or operate intake, transfer, outtake, or camera hardware.
 
-### INIT selections
+### INIT controls
 
 - **X:** Red/Blue alliance.
-- **D-pad left/right:** start preset: Side Wall, Near Corner, Far Corner.
-- **D-pad up/down:** Flower: Left Wall, Top Wall, Right Wall, Bottom Wall.
-- **A:** lane: Inside Hive or Outside Hive.
-- **B:** audience-side or opposite-audience-side Cell.
+- **D-pad left/right:** Side Wall, Near Corner, Far Corner start preset.
+- **D-pad up/down:** Left Wall, Top Wall, Right Wall, Bottom Wall Flower.
+- **A:** Inside Hive / Outside Hive lane.
+- **B:** audience-side / opposite-audience-side Hive side.
 
-The start poses are written directly in `PathTestAuto.java` as six explicit `new Pose(x, y, heading)` assignments. They are not hidden inside a start-pose generator. Coordinates are chassis-center poses.
+### Values required before the path can start
 
-### Values required before path testing
+The OpMode checks that these values are set:
 
-The path OpMode intentionally refuses to start while any required value is missing:
+- `Constants.DRIVETRAIN_CONFIG_TUNED`: Mecanum configuration generated for this robot.
+- `Constants.LOCALIZER_CONFIG_TUNED`: complete Pinpoint configuration generated for these two pods.
+- `Constants.foresightConfig`: Foresight output generated for this robot.
+- `RobotConfig.ROBOT_WIDTH_INCHES` and `RobotConfig.ROBOT_LENGTH_INCHES`: measure the assembled robot, including bumpers.
+- `RobotConfig.INSIDE_LANE_X/Y` and `OUTSIDE_LANE_X/Y`: lane waypoint coordinates measured from field CAD.
+- `RobotConfig.FLOWER_STANDOFF_INCHES`: measured robot-center Flower approach standoff.
 
-- `RobotConfig.FORESIGHT_CONFIG`: generate this using Pedro's Foresight tuner on this robot, then paste the generated configuration here. A null algorithm is fine for manual drive but is not used for path following.
-- `ROBOT_WIDTH_INCHES` and `ROBOT_LENGTH_INCHES`: measure the assembled robot, including bumpers.
-- `INSIDE_LANE_X/Y` and `OUTSIDE_LANE_X/Y`: set the actual lane waypoint coordinates from field CAD / measured field layout. These are RED-side coordinates; the path test mirrors X for Blue.
-- `FLOWER_STANDOFF_INCHES`: measure the correct robot-center distance for the intake approach. It is not assumed from an 18-inch chassis or an unverified intake extension.
-
-The existing Hive and Flower reference coordinates, Hive X offset, Cell separation, and Hive approach distance in `RobotConfig.java` are carried over from earlier project code. They are marked as estimates and must be verified against the official field CAD. The earlier code only displayed the Inside/Outside lane selection; it did not contain executable route geometry for both lanes. The new test requires the team to enter those two lane waypoints explicitly rather than inventing them.
-
-The three starting poses are team presets from the earlier code. Verify each on the assembled field before driving. Setting a starting pose changes Pedro's estimate; it does not detect or move the robot.
+The existing Hive X offset, Cell separation, Hive approach distance, and Flower coordinates are inherited estimates. Verify all of them against official field CAD before a powered test. The three start presets also need physical verification. All values in PathTestAuto use Pedro's coordinate frame (origin lower-left, X right, Y up, counterclockwise headings), not the FTC SDK coordinate frame; convert CAD/tool values before entering them. Setting a software starting pose does not detect or reposition the robot.
 
 ## Individual motor test
 
-`IndividualMotorTest.java` only maps the listed motors and tests the selected one:
+`IndividualMotorTest.java` is separate from Pedro and Pinpoint:
 
-- D-pad left/right: choose the next motor.
-- Hold **A** and move the left stick Y: set power to the selected motor.
-- All other mapped motors are commanded to zero each loop.
-- A blank transfer name is shown as disabled. A configured but missing motor is shown as not found.
+- D-pad left/right selects the motor.
+- Hold **A** and move the left stick Y to power the selected motor.
+- The test commands every other mapped motor to zero each loop.
+- A blank transfer name is shown as disabled; a configured but missing motor is shown as not found.
 
-Raise and secure the robot before running it. Check each motor direction at low power first. This OpMode does not initialize Pedro, Pinpoint, mechanisms, or a camera.
+Raise and secure the robot. Start with low power and verify the motor direction before increasing power.
 
-## Other controls
+## Manual TeleOp controls
 
-### Gamepad 1 (manual TeleOps)
+### Gamepad 1
 
 - Left stick Y: forward/back.
 - Left stick X: strafe.
@@ -98,50 +105,37 @@ Raise and secure the robot before running it. Check each motor direction at low 
 
 ### Gamepad 2 (Manual and Pedro TeleOps)
 
-- Left bumper: run intake for `INTAKE_SECONDS`. If transfer is enabled and found, it runs after intake.
+- Left bumper: timed intake sequence. If transfer is configured and found, transfer runs after intake.
 - Right bumper: run both outtakes for `SHOOT_SECONDS`.
-- Hold Back: manual motor test. Left stick Y runs intake, right stick Y runs transfer, left trigger runs `ol`, and right trigger runs `or`.
+- Hold Back: direct mechanism test. Left stick Y runs intake, right stick Y runs optional transfer, left trigger runs `ol`, and right trigger runs `or`.
 
 ### No-shoot TeleOp
 
-- Left bumper: run intake, then optional transfer.
-- Hold Back: manually test intake and optional transfer.
-- Outtakes are initialized and held at zero. This OpMode never sends them nonzero power.
-
-## Pedro and Pinpoint
-
-The Pedro TeleOp uses the GoBilda Pinpoint localizer and the two odometry pods. The device name, pod directions, and offsets are in `RobotConfig.java`.
-
-The current offsets and directions are carried-over starting values, not verified measurements. Check the pod mounting direction and measure the offsets from the robot's tracking center before trusting pose telemetry.
-
-## Camera
-
-The camera's Driver Station hardware name is `Webcam 2`; the code refers to it as `cam1` through `RobotConfig.CAM1`. Camera - AprilTag Test only initializes an AprilTag processor and shows the live view and detected tag/cluster names. It does not run color detection, make game decisions, or control motors.
+Left bumper runs intake and optional transfer. Holding Back enables direct intake/transfer testing. This OpMode never sends nonzero power to `ol` or `or`.
 
 ## Mechanism limits
 
-- Intake and transfer use timers. No sensor confirms that a game piece moved.
-- Shooting runs `ol` and `or` together for the configured time.
-- The shooting preset requires both outtake motors to be present.
-- Powers and times are starting values. Test one mechanism at a time with the robot secured.
-- The transfer name is blank by default; no transfer motor is looked up or required until configured.
+- Intake and transfer use timers; no sensor confirms a game piece moved.
+- The shooting preset requires both outtake motors to be present and runs them together.
+- Powers and durations in `RobotConfig.java` are starting values. Test each installed mechanism separately with the robot secured.
+- A blank transfer name disables transfer; no transfer motor is looked up or required.
 
-## Forward test
+## Forward movement test
 
-Auto - Forward Test uses constant power for one configured duration, then stops. It is only a movement check. It does not guarantee LEAVE and does not attempt PARK.
+Auto - Forward Test uses constant power for one configured duration, then stops. It is a basic movement check. It does not guarantee LEAVE and does not attempt PARK.
 
 BIOBUZZ Manual TU07:
 - §10.5.4, page 88: LEAVE means the robot is no longer contacting the perimeter wall. PARK means at least part of the robot is in the Loading Zone.
 - Table 10-2, page 89: LEAVE is worth 3 AUTO points. PARK is worth 5 AUTO points and 5 TELEOP points.
 - §10.5, page 84: LEAVE and AUTO PARK are assessed at the end of AUTO; TELEOP PARK is assessed at the end of the MATCH.
 
-## First hardware test
+## First hardware test sequence
 
-1. Check every configured name against the Driver Station Hardware page.
-2. Raise and secure the robot so no wheel or mechanism can contact the floor or a person.
-3. Run Motor - Individual Test at low power and verify each motor direction.
-4. Run Auto - Forward Test to verify basic drivetrain movement.
-5. Use TeleOp - Manual (No Pedro) to test the drive and installed mechanisms.
-6. Verify Pinpoint direction and measured offsets.
-7. Run Auto - Path Test only after Foresight, robot dimensions, lane waypoints, and Flower standoff are set and checked against the field.
-8. Run Camera - AprilTag Test separately.
+1. Confirm every configured hardware name against the Driver Station Hardware page.
+2. Secure/raise the robot so wheels and mechanisms cannot contact the floor, field, or a person.
+3. Use Individual Motor Test at low power to check each installed motor and direction.
+4. Use Auto - Forward Test for a brief drivetrain movement check.
+5. Use TeleOp - Manual (No Pedro) to test drive and installed mechanisms.
+6. Complete Mecanum and Pinpoint tuning, then Foresight tuning and the Tests procedure.
+7. Fill and verify robot dimensions and field waypoints before Path Test.
+8. Run the AprilTag camera test separately.
