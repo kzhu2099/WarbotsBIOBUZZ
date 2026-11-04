@@ -9,7 +9,7 @@ This GitHub repository contains the source code that is used to build an Android
 
 The team's current test OpModes, simple controls, mechanism presets, camera diagnostic, and hardware setup notes are in [docs/ROBOT_TESTS.md](docs/ROBOT_TESTS.md).
 
-The autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. Pedro manual drive uses the robot's Pinpoint odometry. Path following is not enabled.
+The forward autonomous is a drivetrain check. A separate Path Test OpMode runs Pedro paths without activating mechanisms; it requires measured lane/robot geometry and this robot's Foresight configuration before it will move. Pedro manual drive uses the robot's Pinpoint odometry. See [the robot and PedroPathing guide](docs/PEDRO_AND_ROBOT_GUIDE.md) for how this code is structured, how to tune Pedro, and how to add paths. See [the hardware test guide](docs/ROBOT_TESTS.md) for the test OpModes.
 
 ## Requirements
 To use this Android Studio project, you will need Android Studio Narwhal 3 Feature Drop or later.
