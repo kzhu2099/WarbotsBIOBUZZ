@@ -5,9 +5,11 @@ This repository contains the public FTC SDK for the BIOBUZZ (2026-2027) competit
 ## Welcome!
 This GitHub repository contains the source code that is used to build an Android app to control a *FIRST* Tech Challenge competition robot.  To use this SDK, download/clone the entire project to your local computer.
 
-## Warbots BIOBUZZ autos
+## Warbots BIOBUZZ robot code
 
-For the team's autonomous routines, start-position and Flower selection, robot dimensions, and PedroPathing setup, see [the autos and tuning notes](docs/biobuzz-autos-and-pedropathing.md). The autos will not drive until the robot-specific Foresight configuration has been generated with the tuner and added to `TeamCode/src/main/java/org/firstinspires/ftc/teamcode/pedro/Constants.java`.
+The team's current test OpModes, simple controls, mechanism presets, camera diagnostic, and hardware setup notes are in [docs/ROBOT_TESTS.md](docs/ROBOT_TESTS.md).
+
+The autonomous is a forward-only drivetrain test. It is not a Leave-and-Park scoring route. Pedro manual drive uses the robot's Pinpoint odometry. Path following is not enabled.
 
 ## Requirements
 To use this Android Studio project, you will need Android Studio Narwhal 3 Feature Drop or later.
