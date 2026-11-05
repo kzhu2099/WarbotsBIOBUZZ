@@ -59,4 +59,4 @@ The path test calls `follower.setPose(startPose)`. That sets the software's star
 - [FIRST BIOBUZZ field resources](https://ftc-resources.firstinspires.org/ftc/archive/2027/field)
 
 
-The drive mixer uses Pedro's `DrivePowers` convention: positive lateral input is the gamepad's rightward stick direction, and positive turn input is the gamepad's rightward turn stick direction. The non-Pedro manual drive and Pedro manual drive use the same wheel-power equations. Confirm the resulting physical movement with the robot raised before driving on the floor.
+The drive mixer uses Pedro's `DrivePowers` convention. Both manual TeleOps negate the gamepad's strafe and turn axes before sending them to the same mixer, matching PedroPathing's own manual-drive test. Confirm that the robot moves right when the left stick moves right and turns right when the right stick moves right. Test this with the robot raised before putting it on the floor.
