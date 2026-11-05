@@ -183,6 +183,8 @@ class ForwardVelocity extends TuningOpMode<Double> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         boolean end = false;
 
         localizer.setPose(Pose.zero());
@@ -219,7 +221,10 @@ class ForwardVelocity extends TuningOpMode<Double> {
         }
         average /= velocities.size();
         return average;
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 }
 
 class StrafeVelocity extends TuningOpMode<Double> {
@@ -240,6 +245,8 @@ class StrafeVelocity extends TuningOpMode<Double> {
     protected Double runTuningOpMode() throws InterruptedException {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
+
+        try {
 
         boolean end = false;
 
@@ -277,7 +284,10 @@ class StrafeVelocity extends TuningOpMode<Double> {
         }
         average /= velocities.size();
         return average;
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 }
 
 class ForwardDeceleration extends TuningOpMode<Double> {
@@ -303,6 +313,8 @@ class ForwardDeceleration extends TuningOpMode<Double> {
     protected Double runTuningOpMode() throws InterruptedException {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
+
+        try {
 
         accelerations.clear();
         previousVelocity = 0;
@@ -371,7 +383,10 @@ class ForwardDeceleration extends TuningOpMode<Double> {
         average /= accelerations.size();
 
         return Math.abs(average);
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 }
 
 class StrafeDeceleration extends TuningOpMode<Double> {
@@ -397,6 +412,8 @@ class StrafeDeceleration extends TuningOpMode<Double> {
     protected Double runTuningOpMode() throws InterruptedException {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
+
+        try {
 
         accelerations.clear();
         previousVelocity = 0;
@@ -465,7 +482,10 @@ class StrafeDeceleration extends TuningOpMode<Double> {
         average /= accelerations.size();
 
         return Math.abs(average);
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 }
 
 class HeadingBraking extends TuningOpMode<List<Double>> {
@@ -506,6 +526,8 @@ class HeadingBraking extends TuningOpMode<List<Double>> {
     protected List<Double> runTuningOpMode() throws InterruptedException {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
+
+        try {
 
         localizer.setPose(Pose.zero());
         localizer.update();
@@ -581,9 +603,12 @@ class HeadingBraking extends TuningOpMode<List<Double>> {
             }
         }
 
-
+        drivetrain.stop();
         return coefficients;
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private enum State {
         DRIVE,
@@ -644,6 +669,8 @@ class HeadingTuner extends TuningOpMode<Double> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         localizer.setPose(Pose.zero());
         localizer.update();
 
@@ -689,7 +716,10 @@ class HeadingTuner extends TuningOpMode<Double> {
 
         drivetrain.drive(new DrivePowers(0.0, 0.0, 0.0), true);
         return calculatekP(ALPHA);
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private double calculatekP(double alpha) {
         kV = 1 / K;
@@ -778,6 +808,8 @@ class ForwardBraking extends TuningOpMode<List<Double>> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         localizer.setPose(Pose.zero());
         localizer.update();
 
@@ -838,13 +870,17 @@ class ForwardBraking extends TuningOpMode<List<Double>> {
             }
         }
 
+        drivetrain.stop();
         if (state == State.DONE) {
             double[] c = quadraticFit(velocityToBrakingDistance);
             coefficients = List.of(c[0], c[1]);
         }
 
         return coefficients;
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private double getHeadingPower(Localizer localizer) {
         double angularVel = localizer.velocity().omega;
@@ -956,6 +992,8 @@ class StrafeBraking extends TuningOpMode<List<Double>> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         localizer.setPose(Pose.zero());
         localizer.update();
 
@@ -1017,13 +1055,17 @@ class StrafeBraking extends TuningOpMode<List<Double>> {
             }
         }
 
+        drivetrain.stop();
         if (state == State.DONE) {
             double[] c = quadraticFit(velocityToBrakingDistance);
             coefficients = List.of(c[0], c[1]);
         }
 
         return coefficients;
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private double getHeadingPower(Localizer localizer) {
         double angularVel = localizer.velocity().omega;
@@ -1121,6 +1163,8 @@ class ForwardTranslational extends TuningOpMode<List<Double>> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         localizer.setPose(Pose.zero());
         localizer.update();
 
@@ -1171,7 +1215,10 @@ class ForwardTranslational extends TuningOpMode<List<Double>> {
 
         //  kP_large, kP_small, coast kV, and brake kV (scaled by aggressiveness factor)
         return List.of(kP_large, kP_small, kV, kV * VEL_AGGRESSIVENESS);
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private double calculatekP(double alpha) {
         kV = 1 / K;
@@ -1245,6 +1292,8 @@ class StrafeTranslational extends TuningOpMode<List<Double>> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
+        try {
+
         localizer.setPose(Pose.zero());
         localizer.update();
 
@@ -1294,7 +1343,10 @@ class StrafeTranslational extends TuningOpMode<List<Double>> {
         double kP_small = calculatekP(ALPHA_SMALL);
 
         return List.of(kP_large, kP_small);
-    }
+    
+        } finally {
+            drivetrain.stop();
+        }}
 
     private double calculatekP(double alpha) {
         kV = 1 / K;
