@@ -8,31 +8,58 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 import static com.pedropathing.api.Paths.line;
 
-@Autonomous(name = "Auto - Path Test (No Mechanisms)", group = "BIOBUZZ Tests")
+@Autonomous(name = "TEST - Pedro Path (No Mechanisms)", group = "BIOBUZZ Tests")
 public class PathTestAuto extends OpMode {
     private enum Start { SIDE_WALL, NEAR_CORNER, FAR_CORNER }
     private enum Flower { LEFT_WALL, TOP_WALL, RIGHT_WALL, BOTTOM_WALL }
-    private enum Lane { INSIDE_HIVE, OUTSIDE_HIVE }
-    private enum HiveSide { AUDIENCE, OPPOSITE_AUDIENCE }
+    private enum Lane { INSIDE, OUTSIDE }
+    private enum HiveSide { AUDIENCE, FIELD }
 
-    // Choices shown during INIT.
+    private static final class PathStep {
+        final String name;
+        final Pose target;
+        final double pauseSeconds;
+
+        PathStep(String name, Pose target, double pauseSeconds) {
+            this.name = name;
+            this.target = target;
+            this.pauseSeconds = pauseSeconds;
+        }
+    }
+
+    private final PoseFactory poses = PoseFactory.radians();
+    private final List<PathStep> route = new ArrayList<>();
+
     private Start start = Start.SIDE_WALL;
     private Flower flower = Flower.LEFT_WALL;
-    private Lane lane = Lane.OUTSIDE_HIVE;
+    private Lane lane = Lane.INSIDE;
     private HiveSide hiveSide = HiveSide.AUDIENCE;
     private boolean redAlliance = true;
 
     private RobotHardware drive;
     private Follower follower;
-    private final PoseFactory poses = PoseFactory.radians();
-    private Pose startPose, lanePose, hivePose, flowerPose;
-    private Pose[] route;
-    private String[] routeNames;
-    private int nextPath, activePath;
-    private double pathStartedAt, pauseEndsAt;
-    private boolean pathRunning, pausing, done;
+
+    private Pose startPose;
+    private Pose laneEntryPose;
+    private Pose laneAtHivePose;
+    private Pose hiveCellPose;
+    private Pose hiveApproachPose;
+    private Pose bypassPose;
+    private Pose flowerApproachPose;
+
+    private int nextStep;
+    private PathStep activeStep;
+    private double pathStartedAt;
+    private double pauseEndsAt;
+    private boolean followingPath;
+    private boolean pausing;
+    private boolean finished;
     private String error;
 
     @Override
@@ -40,35 +67,46 @@ public class PathTestAuto extends OpMode {
         drive = new RobotHardware(hardwareMap);
         if (!drive.driveReady()) {
             error = "Missing drive motors: " + drive.missingDriveMotors();
-        } else {
-            try {
-                follower = Constants.create(hardwareMap);
-            } catch (RuntimeException e) {
-                error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                drive.stopDrive();
-            }
+            return;
+        }
+
+        try {
+            follower = Constants.create(hardwareMap);
+        } catch (RuntimeException exception) {
+            error = errorText(exception);
+            drive.stopDrive();
         }
     }
 
     @Override
     public void init_loop() {
         if (gamepad1.xWasPressed()) redAlliance = !redAlliance;
-        if (gamepad1.dpadLeftWasPressed()) start = Start.values()[(start.ordinal() + 2) % 3];
-        if (gamepad1.dpadRightWasPressed()) start = Start.values()[(start.ordinal() + 1) % 3];
-        if (gamepad1.dpadDownWasPressed()) flower = Flower.values()[(flower.ordinal() + 3) % 4];
-        if (gamepad1.dpadUpWasPressed()) flower = Flower.values()[(flower.ordinal() + 1) % 4];
-        if (gamepad1.aWasPressed()) lane = lane == Lane.INSIDE_HIVE ? Lane.OUTSIDE_HIVE : Lane.INSIDE_HIVE;
-        if (gamepad1.bWasPressed()) hiveSide = hiveSide == HiveSide.AUDIENCE
-                ? HiveSide.OPPOSITE_AUDIENCE : HiveSide.AUDIENCE;
+        if (gamepad1.dpadLeftWasPressed()) {
+            start = Start.values()[(start.ordinal() + Start.values().length - 1) % Start.values().length];
+        }
+        if (gamepad1.dpadRightWasPressed()) {
+            start = Start.values()[(start.ordinal() + 1) % Start.values().length];
+        }
+        if (gamepad1.dpadDownWasPressed()) {
+            flower = Flower.values()[(flower.ordinal() + Flower.values().length - 1) % Flower.values().length];
+        }
+        if (gamepad1.dpadUpWasPressed()) {
+            flower = Flower.values()[(flower.ordinal() + 1) % Flower.values().length];
+        }
+        if (gamepad1.aWasPressed()) {
+            lane = lane == Lane.INSIDE ? Lane.OUTSIDE : Lane.INSIDE;
+        }
+        if (gamepad1.bWasPressed()) {
+            hiveSide = hiveSide == HiveSide.AUDIENCE ? HiveSide.FIELD : HiveSide.AUDIENCE;
+        }
 
         telemetry.addData("Alliance (X)", redAlliance ? "RED" : "BLUE");
         telemetry.addData("Start (D-pad L/R)", start);
         telemetry.addData("Flower (D-pad U/D)", flower);
-        telemetry.addData("Lane (A)", lane);
-        telemetry.addData("Hive side (B)", hiveSide);
-        telemetry.addData("Foresight", Constants.foresightConfig == null ? "NOT SET" : "set");
-        telemetry.addLine("Route pauses at the Hive and Flower instead of running mechanisms.");
-        if (error != null) telemetry.addData("NOT READY", error);
+        telemetry.addData("Lane (A)", lane == Lane.INSIDE ? "INSIDE" : "OUTSIDE");
+        telemetry.addData("Hive cell (B)", hiveSide == HiveSide.FIELD ? "FIELD SIDE" : "AUDIENCE SIDE");
+        telemetry.addData("Pedro", follower == null ? "NOT READY: " + error : "ready");
+        telemetry.addLine("Drive only. No intake, transfer, or outtake commands.");
         telemetry.update();
     }
 
@@ -76,83 +114,20 @@ public class PathTestAuto extends OpMode {
     public void start() {
         if (error != null || follower == null) return;
 
-        if (!Double.isFinite(RobotConfig.ROBOT_WIDTH_INCHES) || RobotConfig.ROBOT_WIDTH_INCHES <= 0
-                || !Double.isFinite(RobotConfig.ROBOT_LENGTH_INCHES) || RobotConfig.ROBOT_LENGTH_INCHES <= 0
-                || !Double.isFinite(RobotConfig.INSIDE_LANE_X) || !Double.isFinite(RobotConfig.INSIDE_LANE_Y)
-                || !Double.isFinite(RobotConfig.OUTSIDE_LANE_X) || !Double.isFinite(RobotConfig.OUTSIDE_LANE_Y)
-                || !Double.isFinite(RobotConfig.FLOWER_STANDOFF_INCHES)
-                || RobotConfig.FLOWER_STANDOFF_INCHES <= 0) {
-            error = "Set robot dimensions, both lane points, and Flower standoff in RobotConfig first.";
+        String fieldError = checkFieldConfiguration();
+        if (fieldError != null) {
+            error = fieldError;
             drive.stopDrive();
             return;
         }
 
-        double field = RobotConfig.FIELD_SIZE_INCHES;
-        double halfWidth = RobotConfig.ROBOT_WIDTH_INCHES / 2.0;
-        double halfLength = RobotConfig.ROBOT_LENGTH_INCHES / 2.0;
-        double inset = RobotConfig.CORNER_INSET_INCHES;
-
-        // Start poses are for the center of the chassis.
-        if (start == Start.SIDE_WALL && redAlliance) {
-            startPose = poses.of(halfLength, field / 2.0, 0.0);
-        } else if (start == Start.SIDE_WALL) {
-            startPose = poses.of(field - halfLength, field / 2.0, Math.PI);
-        } else if (start == Start.NEAR_CORNER && redAlliance) {
-            startPose = poses.of(halfWidth + inset, field - halfLength, -Math.PI / 2.0);
-        } else if (start == Start.NEAR_CORNER) {
-            startPose = poses.of(field - halfWidth - inset, halfLength, Math.PI / 2.0);
-        } else if (start == Start.FAR_CORNER && redAlliance) {
-            startPose = poses.of(halfWidth + inset, halfLength, Math.PI / 2.0);
-        } else {
-            startPose = poses.of(field - halfWidth - inset, field - halfLength, -Math.PI / 2.0);
-        }
-
-        // Check these Hive and Cell estimates against the field CAD.
-        double center = field / 2.0;
-        double audienceY = center - RobotConfig.CELL_SEPARATION_INCHES / 2.0;
-        double oppositeY = center + RobotConfig.CELL_SEPARATION_INCHES / 2.0;
-        double hiveX = redAlliance ? center - RobotConfig.HIVE_X_OFFSET_INCHES
-                                   : center + RobotConfig.HIVE_X_OFFSET_INCHES;
-        double hiveApproachX = redAlliance ? hiveX - RobotConfig.HIVE_APPROACH_INCHES
-                                           : hiveX + RobotConfig.HIVE_APPROACH_INCHES;
-        double hiveHeading = redAlliance ? 0.0 : Math.PI;
-        hivePose = poses.of(hiveApproachX,
-                hiveSide == HiveSide.AUDIENCE ? audienceY : oppositeY, hiveHeading);
-
-        // Flower positions are estimates; measure the approach distance.
-        double standoff = RobotConfig.FLOWER_STANDOFF_INCHES;
-        if (flower == Flower.LEFT_WALL) {
-            flowerPose = poses.of(standoff, RobotConfig.FLOWER_LEFT_Y_INCHES, Math.PI);
-        } else if (flower == Flower.TOP_WALL) {
-            flowerPose = poses.of(RobotConfig.FLOWER_TOP_X_INCHES, field - standoff, Math.PI / 2.0);
-        } else if (flower == Flower.RIGHT_WALL) {
-            flowerPose = poses.of(field - standoff, RobotConfig.FLOWER_RIGHT_Y_INCHES, 0.0);
-        } else {
-            flowerPose = poses.of(RobotConfig.FLOWER_BOTTOM_X_INCHES, standoff, -Math.PI / 2.0);
-        }
-
-        // Lane points are entered for Red. Blue reflects X across the field centerline.
-        if (lane == Lane.INSIDE_HIVE && redAlliance) {
-            lanePose = poses.of(RobotConfig.INSIDE_LANE_X, RobotConfig.INSIDE_LANE_Y, hiveHeading);
-        } else if (lane == Lane.INSIDE_HIVE) {
-            lanePose = poses.of(field - RobotConfig.INSIDE_LANE_X, RobotConfig.INSIDE_LANE_Y, hiveHeading);
-        } else if (redAlliance) {
-            lanePose = poses.of(RobotConfig.OUTSIDE_LANE_X, RobotConfig.OUTSIDE_LANE_Y, hiveHeading);
-        } else {
-            lanePose = poses.of(field - RobotConfig.OUTSIDE_LANE_X, RobotConfig.OUTSIDE_LANE_Y, hiveHeading);
-        }
-
-        // These pauses replace the two shots and the intake step.
-        route = new Pose[]{lanePose, hivePose, flowerPose, lanePose, hivePose};
-        routeNames = new String[]{"Lane", "Hive - preload pause", "Flower - intake pause",
-                                  "Lane - return", "Hive - final pause"};
-
         try {
+            buildRoute();
             follower.setPose(startPose);
-            nextPath = 0;
-            startNextPath();
-        } catch (RuntimeException e) {
-            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            follower.update();
+            startNextStep();
+        } catch (RuntimeException exception) {
+            error = errorText(exception);
             stopPath();
         }
     }
@@ -165,64 +140,342 @@ public class PathTestAuto extends OpMode {
             telemetry.update();
             return;
         }
-        if (done) {
+
+        if (finished) {
             drive.stopDrive();
-            telemetry.addData("PATH TEST", "complete - no mechanisms used");
-            telemetry.addData("Final pose", follower.pose());
+            telemetry.addData("PATH TEST", "complete");
+            showPoses();
             telemetry.update();
             return;
         }
 
         double now = getRuntime();
+
         try {
             follower.update();
+
             if (pausing) {
                 drive.stopDrive();
                 if (now >= pauseEndsAt) {
                     pausing = false;
-                    startNextPath();
+                    startNextStep();
                 }
-            } else if (pathRunning && !follower.isBusy()) {
-                pathRunning = false;
+            } else if (followingPath && !follower.isBusy()) {
+                followingPath = false;
                 follower.stop();
                 drive.stopDrive();
-                if (activePath == 1 || activePath == 2 || activePath == 4) {
+
+                if (activeStep.pauseSeconds > 0) {
                     pausing = true;
-                    pauseEndsAt = now + RobotConfig.PATH_PAUSE_SECONDS;
+                    pauseEndsAt = now + activeStep.pauseSeconds;
                 } else {
-                    startNextPath();
+                    startNextStep();
                 }
-            } else if (pathRunning && now - pathStartedAt > RobotConfig.PATH_TIMEOUT_SECONDS) {
-                error = "Path timed out: " + routeNames[activePath];
+            } else if (followingPath && now - pathStartedAt > RobotConfig.PATH_TIMEOUT_SECONDS) {
+                error = "Path timed out at: " + activeStep.name;
                 stopPath();
             }
-        } catch (RuntimeException e) {
-            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        } catch (RuntimeException exception) {
+            error = errorText(exception);
             stopPath();
         }
 
-        telemetry.addData("Path", done ? "DONE" : (pausing ? "PAUSE" : routeNames[activePath]));
-        telemetry.addData("Pose", follower.pose());
-        telemetry.addData("Start pose", startPose);
-        telemetry.addData("Lane point", lanePose);
-        telemetry.addData("Hive approach", hivePose);
-        telemetry.addData("Flower approach", flowerPose);
-        telemetry.addData("Next", nextPath + " / " + route.length);
-        telemetry.addData("Status", error == null ? "running" : error);
+        telemetry.addData("Path step", activeStep == null ? "starting" : activeStep.name);
+        telemetry.addData("Status", pausing ? "pause" : "running");
+        telemetry.addData("Robot pose", formatPose(follower.pose()));
+        showPoses();
         telemetry.update();
     }
 
-    private void startNextPath() {
-        if (nextPath == route.length) {
-            done = true;
-            pathRunning = false;
+    private void buildRoute() {
+        double fieldSize = FieldConfig.FIELD_SIZE_INCHES;
+        double center = FieldConfig.CENTER_INCHES;
+        double halfWidth = FieldConfig.ROBOT_WIDTH_INCHES / 2.0;
+
+        startPose = createStartPose(fieldSize, halfWidth);
+
+        double redHiveCellX = center - FieldConfig.HIVE_CELL_X_OFFSET_INCHES;
+        double hiveCellX = redAlliance ? redHiveCellX : fieldSize - redHiveCellX;
+        double hiveCellY = center + (hiveSide == HiveSide.FIELD
+                ? FieldConfig.HIVE_CELL_SEPARATION_INCHES / 2.0
+                : -FieldConfig.HIVE_CELL_SEPARATION_INCHES / 2.0);
+        double allianceHeading = redAlliance ? 0.0 : Math.PI;
+        double hiveApproachX = redAlliance
+                ? hiveCellX - FieldConfig.HIVE_APPROACH_INCHES
+                : hiveCellX + FieldConfig.HIVE_APPROACH_INCHES;
+
+        hiveCellPose = poses.of(hiveCellX, hiveCellY, allianceHeading);
+        hiveApproachPose = poses.of(hiveApproachX, hiveCellY, allianceHeading);
+
+        double redLaneX = lane == Lane.INSIDE
+                ? FieldConfig.INSIDE_LANE_X_INCHES : FieldConfig.OUTSIDE_LANE_X_INCHES;
+        double laneX = redAlliance ? redLaneX : fieldSize - redLaneX;
+
+        laneEntryPose = poses.of(laneX, startPose.y(), allianceHeading);
+        laneAtHivePose = poses.of(laneX, hiveCellY, allianceHeading);
+        flowerApproachPose = createFlowerPose(fieldSize);
+
+        route.clear();
+        bypassPose = null;
+
+        addStep("Move from start to the lane", laneEntryPose, 0);
+        addStep("Follow the " + lane.name().toLowerCase(Locale.US) + " lane to the Hive row",
+                laneAtHivePose, 0);
+        addStep("Approach the " + hiveSide.name().toLowerCase(Locale.US) + " Hive cell",
+                hiveApproachPose, RobotConfig.PATH_PAUSE_SECONDS);
+
+        List<Pose> flowerRoute = createFlowerRoute(
+                fieldSize, center, laneX, allianceHeading, halfWidth);
+        addStep("Back out of the Hive", laneAtHivePose, 0);
+
+        for (int i = 1; i < flowerRoute.size(); i++) {
+            Pose target = flowerRoute.get(i);
+            String name = i == flowerRoute.size() - 1
+                    ? "Approach the " + flower.name().toLowerCase(Locale.US)
+                    : flowerRouteStepName(i, flowerRoute.size());
+            double pause = i == flowerRoute.size() - 1 ? RobotConfig.PATH_PAUSE_SECONDS : 0;
+            addStep(name, target, pause);
+        }
+
+        for (int i = flowerRoute.size() - 2; i >= 0; i--) {
+            addStep("Return: " + flowerRouteStepName(i, flowerRoute.size()), flowerRoute.get(i), 0);
+        }
+
+        addStep("Final Hive approach", hiveApproachPose, RobotConfig.PATH_PAUSE_SECONDS);
+    }
+
+    private List<Pose> createFlowerRoute(
+            double fieldSize,
+            double center,
+            double laneX,
+            double allianceHeading,
+            double halfWidth) {
+        List<Pose> points = new ArrayList<>();
+        points.add(laneAtHivePose);
+
+        double flowerY = flowerApproachPose.y();
+        boolean oppositeWall = needsHiveBypass();
+
+        if (oppositeWall) {
+            double bypassDistance = FieldConfig.HIVE_FRAME_DEPTH_INCHES / 2.0
+                    + halfWidth + FieldConfig.HIVE_CLEARANCE_INCHES;
+            double bypassY = hiveSide == HiveSide.FIELD
+                    ? center + bypassDistance : center - bypassDistance;
+            bypassPose = poses.of(laneX, bypassY, allianceHeading);
+
+            double otherLaneX = fieldSize - laneX;
+            Pose otherSideOfBypass = poses.of(otherLaneX, bypassY, allianceHeading);
+            Pose otherSideFlowerRow = poses.of(otherLaneX, flowerY, allianceHeading);
+
+            points.add(bypassPose);
+            points.add(otherSideOfBypass);
+            points.add(otherSideFlowerRow);
+        } else {
+            Pose laneAtFlower = poses.of(laneX, flowerY, allianceHeading);
+            points.add(laneAtFlower);
+        }
+
+        points.add(flowerApproachPose);
+        return points;
+    }
+
+    private boolean needsHiveBypass() {
+        return (flower == Flower.LEFT_WALL && !redAlliance)
+                || (flower == Flower.RIGHT_WALL && redAlliance);
+    }
+
+    private String flowerRouteStepName(int index, int count) {
+        if (bypassPose != null && index == 1) return "Reach the Hive bypass lane";
+        if (bypassPose != null && index == 2) return "Cross the field outside the Hive frame";
+        if (bypassPose != null && index == 3) return "Follow the far-side lane to the Flower row";
+        if (index == count - 1) return "Reach the Flower row";
+        return "Follow the lane";
+    }
+
+    private Pose createStartPose(double fieldSize, double halfWidth) {
+        double halfLength = FieldConfig.ROBOT_LENGTH_INCHES / 2.0;
+        double inset = FieldConfig.CORNER_INSET_INCHES;
+
+        if (start == Start.SIDE_WALL) {
+            return redAlliance
+                    ? poses.of(halfLength, FieldConfig.CENTER_INCHES, 0)
+                    : poses.of(fieldSize - halfLength, FieldConfig.CENTER_INCHES, Math.PI);
+        }
+
+        if (start == Start.NEAR_CORNER) {
+            return redAlliance
+                    ? poses.of(halfWidth + inset, fieldSize - halfLength, -Math.PI / 2.0)
+                    : poses.of(fieldSize - halfWidth - inset, halfLength, Math.PI / 2.0);
+        }
+
+        return redAlliance
+                ? poses.of(halfWidth + inset, halfLength, Math.PI / 2.0)
+                : poses.of(fieldSize - halfWidth - inset, fieldSize - halfLength, -Math.PI / 2.0);
+    }
+
+    private Pose createFlowerPose(double fieldSize) {
+        double standoff = FieldConfig.FLOWER_STANDOFF_INCHES;
+        double alongWall = FieldConfig.FLOWER_POSITION_INCHES;
+
+        switch (flower) {
+            case LEFT_WALL:
+                return poses.of(standoff, alongWall, Math.PI);
+            case TOP_WALL:
+                return poses.of(alongWall, fieldSize - standoff, Math.PI / 2.0);
+            case RIGHT_WALL:
+                return poses.of(fieldSize - standoff, alongWall, 0);
+            case BOTTOM_WALL:
+                return poses.of(alongWall, standoff, -Math.PI / 2.0);
+            default:
+                throw new IllegalStateException("Unknown Flower");
+        }
+    }
+
+    private String checkFieldConfiguration() {
+        List<String> missing = new ArrayList<>();
+
+        requirePositive(missing, "robot width including bumpers",
+                FieldConfig.ROBOT_WIDTH_INCHES);
+        requirePositive(missing, "robot length including bumpers",
+                FieldConfig.ROBOT_LENGTH_INCHES);
+        if (start != Start.SIDE_WALL) {
+            requirePositive(missing, "corner inset", FieldConfig.CORNER_INSET_INCHES);
+        }
+        requirePositive(missing, "Hive cell X offset",
+                FieldConfig.HIVE_CELL_X_OFFSET_INCHES);
+        requirePositive(missing, "Hive approach distance",
+                FieldConfig.HIVE_APPROACH_INCHES);
+        requirePositive(missing, "selected lane X coordinate",
+                lane == Lane.INSIDE ? FieldConfig.INSIDE_LANE_X_INCHES
+                        : FieldConfig.OUTSIDE_LANE_X_INCHES);
+        requirePositive(missing, "Flower standoff", FieldConfig.FLOWER_STANDOFF_INCHES);
+
+        if (!missing.isEmpty()) {
+            return "Set in FieldConfig.java: " + String.join(", ", missing);
+        }
+
+        double fieldSize = FieldConfig.FIELD_SIZE_INCHES;
+        double center = FieldConfig.CENTER_INCHES;
+        double halfWidth = FieldConfig.ROBOT_WIDTH_INCHES / 2.0;
+        double halfLength = FieldConfig.ROBOT_LENGTH_INCHES / 2.0;
+        double frameLeft = center - FieldConfig.HIVE_FRAME_WIDTH_INCHES / 2.0;
+        double frameRight = center + FieldConfig.HIVE_FRAME_WIDTH_INCHES / 2.0;
+
+        double redLaneX = lane == Lane.INSIDE
+                ? FieldConfig.INSIDE_LANE_X_INCHES : FieldConfig.OUTSIDE_LANE_X_INCHES;
+        double laneX = redAlliance ? redLaneX : fieldSize - redLaneX;
+        double redHiveCellX = center - FieldConfig.HIVE_CELL_X_OFFSET_INCHES;
+        double hiveCellX = redAlliance ? redHiveCellX : fieldSize - redHiveCellX;
+        double hiveApproachX = redAlliance
+                ? hiveCellX - FieldConfig.HIVE_APPROACH_INCHES
+                : hiveCellX + FieldConfig.HIVE_APPROACH_INCHES;
+
+        if (redLaneX <= halfLength || redLaneX + halfLength
+                >= frameLeft - FieldConfig.HIVE_CLEARANCE_INCHES) {
+            return "The selected lane is not clear of the wall and Hive frame. Recheck its X coordinate.";
+        }
+        if (redHiveCellX <= frameLeft || redHiveCellX >= center) {
+            return "Hive cell X offset does not place the red cell inside the red half of the frame.";
+        }
+        if (redAlliance && (hiveApproachX <= laneX
+                || hiveApproachX + halfLength >= frameLeft - FieldConfig.HIVE_CLEARANCE_INCHES)) {
+            return "Hive approach is not between the selected lane and the Hive frame.";
+        }
+        if (!redAlliance && (hiveApproachX >= laneX
+                || hiveApproachX - halfLength <= frameRight + FieldConfig.HIVE_CLEARANCE_INCHES)) {
+            return "Hive approach is not between the selected lane and the Hive frame.";
+        }
+
+        Pose selectedStart = createStartPose(fieldSize, halfWidth);
+        if (!robotFitsInsideField(selectedStart, halfLength, halfWidth)) {
+            return "Selected start pose puts part of the robot outside the field.";
+        }
+
+        Pose flowerPose = createFlowerPose(fieldSize);
+        if (!robotFitsInsideField(flowerPose, halfLength, halfWidth)) {
+            return "Flower approach puts part of the robot outside the field.";
+        }
+
+        if (flower == Flower.TOP_WALL || flower == Flower.BOTTOM_WALL) {
+            double safeY = center + FieldConfig.HIVE_FRAME_DEPTH_INCHES / 2.0
+                    + halfWidth + FieldConfig.HIVE_CLEARANCE_INCHES;
+            if (flower == Flower.TOP_WALL && flowerPose.y() <= safeY) {
+                return "Top Flower route would cross the Hive frame. Check Flower standoff and robot width.";
+            }
+            if (flower == Flower.BOTTOM_WALL && flowerPose.y() >= fieldSize - safeY) {
+                return "Bottom Flower route would cross the Hive frame. Check Flower standoff and robot width.";
+            }
+        }
+
+        if (flower == Flower.LEFT_WALL && redAlliance
+                && flowerPose.x() + halfLength >= frameLeft - FieldConfig.HIVE_CLEARANCE_INCHES) {
+            return "Left Flower approach is too close to the Hive frame.";
+        }
+        if (flower == Flower.RIGHT_WALL && !redAlliance
+                && flowerPose.x() - halfLength <= frameRight + FieldConfig.HIVE_CLEARANCE_INCHES) {
+            return "Right Flower approach is too close to the Hive frame.";
+        }
+
+        if (needsHiveBypass()) {
+            double bypassDistance = FieldConfig.HIVE_FRAME_DEPTH_INCHES / 2.0
+                    + halfWidth + FieldConfig.HIVE_CLEARANCE_INCHES;
+            if ((hiveSide == HiveSide.FIELD && center + bypassDistance >= fieldSize - halfWidth)
+                    || (hiveSide == HiveSide.AUDIENCE && center - bypassDistance <= halfWidth)) {
+                return "Robot is too wide to clear the Hive frame on the selected bypass side.";
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean robotFitsInsideField(Pose pose, double halfLength, double halfWidth) {
+        double heading = pose.heading();
+        double xExtent = Math.abs(Math.cos(heading)) * halfLength
+                + Math.abs(Math.sin(heading)) * halfWidth;
+        double yExtent = Math.abs(Math.sin(heading)) * halfLength
+                + Math.abs(Math.cos(heading)) * halfWidth;
+
+        return pose.x() >= xExtent && pose.x() <= FieldConfig.FIELD_SIZE_INCHES - xExtent
+                && pose.y() >= yExtent && pose.y() <= FieldConfig.FIELD_SIZE_INCHES - yExtent;
+    }
+
+    private static void requirePositive(List<String> missing, String label, double value) {
+        if (!Double.isFinite(value) || value <= 0) missing.add(label);
+    }
+
+    private void addStep(String name, Pose target, double pauseSeconds) {
+        route.add(new PathStep(name, target, pauseSeconds));
+    }
+
+    private void startNextStep() {
+        if (nextStep >= route.size()) {
+            finished = true;
+            followingPath = false;
             drive.stopDrive();
             return;
         }
-        activePath = nextPath++;
-        follower.follow(line(follower.pose(), route[activePath]).constant(route[activePath].heading()));
+
+        activeStep = route.get(nextStep++);
+        Pose from = follower.pose();
+        follower.follow(line(from, activeStep.target).linear(from, activeStep.target));
         pathStartedAt = getRuntime();
-        pathRunning = true;
+        followingPath = true;
+    }
+
+    private void showPoses() {
+        telemetry.addData("Start center", formatPose(startPose));
+        telemetry.addData("Lane entry", formatPose(laneEntryPose));
+        telemetry.addData("Lane at Hive row", formatPose(laneAtHivePose));
+        telemetry.addData("Hive cell center", formatPose(hiveCellPose));
+        telemetry.addData("Hive approach", formatPose(hiveApproachPose));
+        telemetry.addData("Hive bypass", formatPose(bypassPose));
+        telemetry.addData("Flower approach", formatPose(flowerApproachPose));
+    }
+
+    private static String formatPose(Pose pose) {
+        if (pose == null) return "not used";
+        return String.format(Locale.US, "(%.1f in, %.1f in, %.0f deg)",
+                pose.x(), pose.y(), Math.toDegrees(pose.heading()));
     }
 
     private void stopPath() {
@@ -230,13 +483,18 @@ public class PathTestAuto extends OpMode {
             try {
                 follower.stop();
             } catch (RuntimeException ignored) {
-                // Direct motor stop below is the safety fallback.
+                // Direct motor stop remains the fallback.
             }
         }
         if (drive != null) drive.stopDrive();
-        pathRunning = false;
+        followingPath = false;
         pausing = false;
-        done = true;
+        finished = true;
+    }
+
+    private static String errorText(RuntimeException exception) {
+        return exception.getMessage() == null
+                ? exception.getClass().getSimpleName() : exception.getMessage();
     }
 
     @Override

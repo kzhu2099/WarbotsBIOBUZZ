@@ -1,100 +1,125 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
-/** Select a motor with the D-pad. Hold A and move the left stick to run it. */
-@TeleOp(name = "Motor - Individual Test", group = "BIOBUZZ Tests")
+import java.util.ArrayList;
+import java.util.List;
+
+@TeleOp(name = "TEST - Individual Motor", group = "BIOBUZZ Tests")
 public class IndividualMotorTest extends OpMode {
-    private final String[] names = {
-            Constants.FRONT_LEFT_NAME,
-            Constants.FRONT_RIGHT_NAME,
-            Constants.BACK_LEFT_NAME,
-            Constants.BACK_RIGHT_NAME,
-            RobotConfig.INTAKE,
-            RobotConfig.TRANSFER,
-            RobotConfig.OL,
-            RobotConfig.OR
-    };
+    private static final class MotorChoice {
+        final String position;
+        final String hardwareName;
+        final DcMotorSimple.Direction direction;
+        DcMotorEx motor;
 
-    private final DcMotorSimple.Direction[] directions = {
-            Constants.FRONT_LEFT_DIRECTION,
-            Constants.FRONT_RIGHT_DIRECTION,
-            Constants.BACK_LEFT_DIRECTION,
-            Constants.BACK_RIGHT_DIRECTION,
-            RobotConfig.INTAKE_DIRECTION,
-            RobotConfig.TRANSFER_DIRECTION,
-            RobotConfig.OL_DIRECTION,
-            RobotConfig.OR_DIRECTION
-    };
+        MotorChoice(String position, String hardwareName, DcMotorSimple.Direction direction) {
+            this.position = position;
+            this.hardwareName = hardwareName;
+            this.direction = direction;
+        }
+    }
 
-    private final DcMotorEx[] motors = new DcMotorEx[names.length];
-    private int selected;
+    private final List<MotorChoice> motors = new ArrayList<>();
+    private int selectedMotor;
     private String error;
 
     @Override
     public void init() {
-        for (int i = 0; i < names.length; i++) {
-            if (names[i] == null || names[i].trim().isEmpty()) continue;
-            try {
-                motors[i] = hardwareMap.get(DcMotorEx.class, names[i]);
-                motors[i].setPower(0);
-                motors[i].setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                motors[i].setDirection(directions[i]);
-                motors[i].setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            } catch (RuntimeException e) {
-                motors[i] = null;
-            }
+        addMotor("Front left wheel", Constants.FRONT_LEFT_NAME, Constants.FRONT_LEFT_DIRECTION);
+        addMotor("Front right wheel", Constants.FRONT_RIGHT_NAME, Constants.FRONT_RIGHT_DIRECTION);
+        addMotor("Back left wheel", Constants.BACK_LEFT_NAME, Constants.BACK_LEFT_DIRECTION);
+        addMotor("Back right wheel", Constants.BACK_RIGHT_NAME, Constants.BACK_RIGHT_DIRECTION);
+        addMotor("Intake", RobotConfig.INTAKE, RobotConfig.INTAKE_DIRECTION);
+        if (RobotConfig.transferEnabled()) {
+            addMotor("Transfer", RobotConfig.TRANSFER, RobotConfig.TRANSFER_DIRECTION);
         }
+        addMotor("Left outtake", RobotConfig.OL, RobotConfig.OL_DIRECTION);
+        addMotor("Right outtake", RobotConfig.OR, RobotConfig.OR_DIRECTION);
     }
 
     @Override
     public void loop() {
-        if (gamepad1.dpadRightWasPressed()) selected = (selected + 1) % names.length;
-        if (gamepad1.dpadLeftWasPressed()) selected = (selected + names.length - 1) % names.length;
+        if (motors.isEmpty()) {
+            telemetry.addLine("No motors are configured.");
+            telemetry.update();
+            return;
+        }
 
-        // Zero every motor before powering the selected one.
-        stopAll();
+        if (gamepad1.dpadRightWasPressed()) {
+            selectedMotor = (selectedMotor + 1) % motors.size();
+        }
+        if (gamepad1.dpadLeftWasPressed()) {
+            selectedMotor = (selectedMotor + motors.size() - 1) % motors.size();
+        }
 
-        DcMotorEx motor = motors[selected];
-        if (error == null && motor != null && gamepad1.a) {
+        stopAllMotors();
+
+        MotorChoice selected = motors.get(selectedMotor);
+        if (error == null && selected.motor != null && gamepad1.a) {
             try {
-                motor.setPower(-Math.max(-1.0, Math.min(1.0, gamepad1.left_stick_y)));
-            } catch (RuntimeException e) {
-                error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                stopAll();
+                double stick = Math.max(-RobotConfig.MOTOR_TEST_MAX_POWER,
+                        Math.min(RobotConfig.MOTOR_TEST_MAX_POWER, -gamepad1.left_stick_y));
+                selected.motor.setPower(stick);
+            } catch (RuntimeException exception) {
+                error = exception.getMessage() == null
+                        ? exception.getClass().getSimpleName() : exception.getMessage();
+                stopAllMotors();
             }
         }
 
-        telemetry.addData("Selected", names[selected].trim().isEmpty() ? "TRANSFER (disabled)" : names[selected]);
-        telemetry.addData("Motor", motor == null
-                ? (names[selected].trim().isEmpty() ? "disabled in RobotConfig" : "not found")
-                : "ready");
-        telemetry.addData("Power enabled", gamepad1.a && motor != null);
-        telemetry.addLine("D-pad left/right: choose motor. Hold A + left stick Y: power it.");
+        telemetry.addData("Selected motor", (selectedMotor + 1) + " of " + motors.size());
+        telemetry.addData("Physical position", selected.position);
+        telemetry.addData("Driver Station name", selected.hardwareName);
+        telemetry.addData("Status", selected.motor == null ? "NOT FOUND" : "ready");
+        telemetry.addData("Power", gamepad1.a && selected.motor != null
+                ? "enabled (max " + RobotConfig.MOTOR_TEST_MAX_POWER + ")" : "off");
+        telemetry.addLine("D-pad left/right selects the motor.");
+        telemetry.addLine("Hold A and move the left stick Y to test it.");
         telemetry.addLine("All other motors are commanded to zero.");
         if (error != null) telemetry.addData("ERROR", error);
         telemetry.update();
     }
 
-    private void stopAll() {
-        for (DcMotorEx motor : motors) {
-            if (motor == null) continue;
+    private void addMotor(
+            String position,
+            String hardwareName,
+            DcMotorSimple.Direction direction) {
+        if (hardwareName == null || hardwareName.trim().isEmpty()) return;
+
+        MotorChoice choice = new MotorChoice(position, hardwareName, direction);
+        try {
+            choice.motor = hardwareMap.get(DcMotorEx.class, hardwareName);
+            choice.motor.setPower(0);
+            choice.motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            choice.motor.setDirection(direction);
+            choice.motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        } catch (RuntimeException ignored) {
+            choice.motor = null;
+        }
+        motors.add(choice);
+    }
+
+    private void stopAllMotors() {
+        for (MotorChoice choice : motors) {
+            if (choice.motor == null) continue;
+
             try {
-                motor.setPower(0);
+                choice.motor.setPower(0);
             } catch (RuntimeException ignored) {
-                // Continue trying to stop the other motors.
+                // Continue stopping the other motors.
             }
         }
     }
 
     @Override
     public void stop() {
-        stopAll();
+        stopAllMotors();
     }
 }
