@@ -14,15 +14,13 @@ import java.util.List;
 @TeleOp(name = "TEST - Individual Motor", group = "BIOBUZZ Tests")
 public class IndividualMotorTest extends OpMode {
     private static final class MotorChoice {
-        final String position;
+        final String physicalPosition;
         final String hardwareName;
-        final DcMotorSimple.Direction direction;
         DcMotorEx motor;
 
-        MotorChoice(String position, String hardwareName, DcMotorSimple.Direction direction) {
-            this.position = position;
+        MotorChoice(String physicalPosition, String hardwareName) {
+            this.physicalPosition = physicalPosition;
             this.hardwareName = hardwareName;
-            this.direction = direction;
         }
     }
 
@@ -36,12 +34,15 @@ public class IndividualMotorTest extends OpMode {
         addMotor("Front right wheel", Constants.FRONT_RIGHT_NAME, Constants.FRONT_RIGHT_DIRECTION);
         addMotor("Back left wheel", Constants.BACK_LEFT_NAME, Constants.BACK_LEFT_DIRECTION);
         addMotor("Back right wheel", Constants.BACK_RIGHT_NAME, Constants.BACK_RIGHT_DIRECTION);
-        addMotor("Intake", RobotConfig.INTAKE, RobotConfig.INTAKE_DIRECTION);
+        addMotor("Intake", RobotConfig.INTAKE_MOTOR_NAME, RobotConfig.INTAKE_MOTOR_DIRECTION);
         if (RobotConfig.transferEnabled()) {
-            addMotor("Transfer", RobotConfig.TRANSFER, RobotConfig.TRANSFER_DIRECTION);
+            addMotor("Transfer", RobotConfig.TRANSFER_MOTOR_NAME,
+                    RobotConfig.TRANSFER_MOTOR_DIRECTION);
         }
-        addMotor("Left outtake", RobotConfig.OL, RobotConfig.OL_DIRECTION);
-        addMotor("Right outtake", RobotConfig.OR, RobotConfig.OR_DIRECTION);
+        addMotor("Left outtake", RobotConfig.LEFT_OUTTAKE_MOTOR_NAME,
+                RobotConfig.LEFT_OUTTAKE_MOTOR_DIRECTION);
+        addMotor("Right outtake", RobotConfig.RIGHT_OUTTAKE_MOTOR_NAME,
+                RobotConfig.RIGHT_OUTTAKE_MOTOR_DIRECTION);
     }
 
     @Override
@@ -64,9 +65,9 @@ public class IndividualMotorTest extends OpMode {
         MotorChoice selected = motors.get(selectedMotor);
         if (error == null && selected.motor != null && gamepad1.a) {
             try {
-                double stick = Math.max(-RobotConfig.MOTOR_TEST_MAX_POWER,
+                double power = Math.max(-RobotConfig.MOTOR_TEST_MAX_POWER,
                         Math.min(RobotConfig.MOTOR_TEST_MAX_POWER, -gamepad1.left_stick_y));
-                selected.motor.setPower(stick);
+                selected.motor.setPower(power);
             } catch (RuntimeException exception) {
                 error = exception.getMessage() == null
                         ? exception.getClass().getSimpleName() : exception.getMessage();
@@ -75,7 +76,7 @@ public class IndividualMotorTest extends OpMode {
         }
 
         telemetry.addData("Selected motor", (selectedMotor + 1) + " of " + motors.size());
-        telemetry.addData("Physical position", selected.position);
+        telemetry.addData("Physical position", selected.physicalPosition);
         telemetry.addData("Driver Station name", selected.hardwareName);
         telemetry.addData("Status", selected.motor == null ? "NOT FOUND" : "ready");
         telemetry.addData("Power", gamepad1.a && selected.motor != null
@@ -88,12 +89,12 @@ public class IndividualMotorTest extends OpMode {
     }
 
     private void addMotor(
-            String position,
+            String physicalPosition,
             String hardwareName,
             DcMotorSimple.Direction direction) {
         if (hardwareName == null || hardwareName.trim().isEmpty()) return;
 
-        MotorChoice choice = new MotorChoice(position, hardwareName, direction);
+        MotorChoice choice = new MotorChoice(physicalPosition, hardwareName);
         try {
             choice.motor = hardwareMap.get(DcMotorEx.class, hardwareName);
             choice.motor.setPower(0);
