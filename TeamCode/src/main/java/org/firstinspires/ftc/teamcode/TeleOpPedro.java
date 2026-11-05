@@ -2,13 +2,14 @@ package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import org.firstinspires.ftc.teamcode.pedro.Constants;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 @TeleOp(name = "TeleOp - Pedro + Pinpoint", group = "BIOBUZZ Tests")
 public class TeleOpPedro extends OpMode {
     private RobotHardware driveHardware;
-    private RobotHardware.Mechanisms mechanisms;
+    private RobotHardware.MechanismController mechanisms;
     private Follower follower;
     private String driveError;
     private String mechanismError;
@@ -16,7 +17,7 @@ public class TeleOpPedro extends OpMode {
     @Override
     public void init() {
         driveHardware = new RobotHardware(hardwareMap);
-        mechanisms = new RobotHardware.Mechanisms(hardwareMap, true);
+        mechanisms = new RobotHardware.MechanismController(hardwareMap, true);
 
         if (!driveHardware.driveReady()) {
             driveError = "Missing drive motors: " + driveHardware.missingDriveMotors();
@@ -25,8 +26,8 @@ public class TeleOpPedro extends OpMode {
 
         try {
             follower = Constants.create(hardwareMap);
-        } catch (RuntimeException e) {
-            driveError = errorText(e);
+        } catch (RuntimeException exception) {
+            driveError = errorText(exception);
             driveHardware.stopDrive();
         }
     }
@@ -35,10 +36,11 @@ public class TeleOpPedro extends OpMode {
     public void init_loop() {
         telemetry.addData("Drive motors", driveHardware.driveReady()
                 ? "ready" : driveHardware.missingDriveMotors());
-        telemetry.addData("Pedro + Pinpoint", follower == null ? "NOT READY: " + driveError : "ready");
+        telemetry.addData("Pedro + Pinpoint", follower == null
+                ? "NOT READY: " + driveError : "ready");
         telemetry.addData("Mechanism motors", mechanisms.missingMotors().isEmpty()
                 ? "all found/configured" : mechanisms.missingMotors());
-        telemetry.addLine("Pinpoint is used for odometry; verify pod offsets and directions.");
+        telemetry.addLine("Check Pinpoint pod offsets and directions before driving.");
         telemetry.update();
     }
 
@@ -47,8 +49,8 @@ public class TeleOpPedro extends OpMode {
         if (mechanismError == null) {
             try {
                 mechanisms.update(getRuntime(), gamepad2);
-            } catch (RuntimeException e) {
-                mechanismError = errorText(e);
+            } catch (RuntimeException exception) {
+                mechanismError = errorText(exception);
                 mechanisms.stop();
             }
         }
@@ -57,14 +59,14 @@ public class TeleOpPedro extends OpMode {
             try {
                 follower.manual(
                         -RobotConfig.driveAxis(gamepad1.left_stick_y),
-                        RobotConfig.driveAxis(gamepad1.left_stick_x),
-                        RobotConfig.driveAxis(gamepad1.right_stick_x)
+                        -RobotConfig.driveAxis(gamepad1.left_stick_x),
+                        -RobotConfig.driveAxis(gamepad1.right_stick_x)
                 );
                 follower.update();
                 telemetry.addData("Pedro + Pinpoint", "manual drive");
                 telemetry.addData("Pose", follower.pose());
-            } catch (RuntimeException e) {
-                driveError = errorText(e);
+            } catch (RuntimeException exception) {
+                driveError = errorText(exception);
                 stopPedroDrive();
             }
         } else {
@@ -93,13 +95,14 @@ public class TeleOpPedro extends OpMode {
             try {
                 follower.stop();
             } catch (RuntimeException ignored) {
-                // Direct motor stops below do not depend on Pedro shutting down cleanly.
+                // Direct motor stop remains the fallback.
             }
         }
         if (driveHardware != null) driveHardware.stopDrive();
     }
 
-    private static String errorText(RuntimeException error) {
-        return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
+    private static String errorText(RuntimeException exception) {
+        return exception.getMessage() == null
+                ? exception.getClass().getSimpleName() : exception.getMessage();
     }
 }

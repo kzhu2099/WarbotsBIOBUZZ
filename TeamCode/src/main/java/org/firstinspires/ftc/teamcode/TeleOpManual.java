@@ -6,13 +6,13 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 @TeleOp(name = "TeleOp - Manual (No Pedro)", group = "BIOBUZZ Tests")
 public class TeleOpManual extends OpMode {
     private RobotHardware robot;
-    private RobotHardware.Mechanisms mechanisms;
+    private RobotHardware.MechanismController mechanisms;
     private String error;
 
     @Override
     public void init() {
         robot = new RobotHardware(hardwareMap);
-        mechanisms = new RobotHardware.Mechanisms(hardwareMap, true);
+        mechanisms = new RobotHardware.MechanismController(hardwareMap, true);
     }
 
     @Override
@@ -29,12 +29,13 @@ public class TeleOpManual extends OpMode {
             try {
                 robot.drive(
                         -RobotConfig.driveAxis(gamepad1.left_stick_y),
-                        RobotConfig.driveAxis(gamepad1.left_stick_x),
-                        RobotConfig.driveAxis(gamepad1.right_stick_x)
+                        -RobotConfig.driveAxis(gamepad1.left_stick_x),
+                        -RobotConfig.driveAxis(gamepad1.right_stick_x)
                 );
                 mechanisms.update(getRuntime(), gamepad2);
-            } catch (RuntimeException e) {
-                error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            } catch (RuntimeException exception) {
+                error = exception.getMessage() == null
+                        ? exception.getClass().getSimpleName() : exception.getMessage();
                 robot.stopDrive();
                 mechanisms.stop();
             }

@@ -72,14 +72,21 @@ public class Tests extends Procedure {
 
         Inputs inputs = inputs("Select", "Select");
         Inputs.Field<Test> selectedTest = inputs.e("Test", Test.class).withDefault(Test.LINE);
-        Inputs.Field<Double> distance = inputs.d("Distance").withDefault(48.0);
+        Inputs.Field<Double> distance = inputs.d("Distance in inches").withDefault(24.0);
 
         awaitInputs(inputs);
+        if (selectedTest.get() == Test.LINE
+                || selectedTest.get() == Test.CURVED
+                || selectedTest.get() == Test.INTERPOLATION_CURVED) {
+            if (distance.get() == null || !Double.isFinite(distance.get()) || distance.get() <= 0) {
+                throw new IllegalArgumentException("Path test distance must be a positive number of inches.");
+            }
+        }
 
         switch (selectedTest.get()) {
             case HOLD:
                 if (!algorithm)
-                    throw new IllegalArgumentException("Algorithm is required for Hold Test.");
+                    throw new IllegalArgumentException("The selected test requires the follower algorithm.");
                 completed = runOpMode(new TestsHold(followerFunction));
                 break;
             case LINE:
@@ -140,22 +147,27 @@ class TestsHold extends TuningOpMode<Boolean> {
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Follower follower = followerFunction.apply(hardwareMap);
-        follower.setPose(Pose.zero());
-        Thread.sleep(1000);
-        waitForStart();
-        follower.setPose(Pose.zero());
-        follower.update();
-        follower.hold(Pose.zero());
-        while (opModeIsActive()) {
+        try {
+            follower.setPose(Pose.zero());
+            Thread.sleep(1000);
+            waitForStart();
+            follower.setPose(Pose.zero());
             follower.update();
+            follower.hold(Pose.zero());
+            while (opModeIsActive()) {
+                follower.update();
+                idle();
+            }
+        } finally {
+            follower.stop();
         }
         return true;
     }
 }
 
 class TestsLine extends TuningOpMode<Boolean> {
-    Function<HardwareMap, Follower> followerFunction;
-    double distance;
+    private final Function<HardwareMap, Follower> followerFunction;
+    private final double distance;
 
     public TestsLine(Function<HardwareMap, Follower> followerFunction, double distance) {
         super("Line Test", "Tests the Follower's ability to follow a line.", true);
@@ -166,37 +178,40 @@ class TestsLine extends TuningOpMode<Boolean> {
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Follower follower = followerFunction.apply(hardwareMap);
-        follower.setPose(Pose.zero());
 
-        boolean forward = true;
+        try {
+            Path forwardPath = line(Pose.zero(), new Pose(distance, 0, 0)).constant(0);
+            Path returnPath = line(new Pose(distance, 0, 0), Pose.zero()).constant(0);
+            boolean followingForward = true;
 
-        Path path1 = line(Pose.zero(), new Pose(distance,0, 0)).constant(0);
-        Path path2 = line(new Pose(distance,0, 0), Pose.zero()).constant(0);
-
-        Thread.sleep(1000);
-        waitForStart();
-        follower.setPose(Pose.zero());
-        follower.update();
-        follower.follow(path1);
-
-        while (opModeIsActive()) {
+            follower.setPose(Pose.zero());
+            Thread.sleep(1000);
+            waitForStart();
+            follower.setPose(Pose.zero());
             follower.update();
-            if (follower.atParametricEnd()) {
-                if (forward) {
-                    follower.follow(path2);
-                } else {
-                    follower.follow(path1);
+            follower.follow(forwardPath);
+
+            while (opModeIsActive()) {
+                follower.update();
+
+                if (follower.atParametricEnd()) {
+                    follower.follow(followingForward ? returnPath : forwardPath);
+                    followingForward = !followingForward;
                 }
-                forward = !forward;
+
+                idle();
             }
+        } finally {
+            follower.stop();
         }
+
         return true;
     }
 }
 
 class TestsCurve extends TuningOpMode<Boolean> {
-    Function<HardwareMap, Follower> followerFunction;
-    double distance;
+    private final Function<HardwareMap, Follower> followerFunction;
+    private final double distance;
 
     public TestsCurve(Function<HardwareMap, Follower> followerFunction, double distance) {
         super("Curve Test", "Tests the Follower's ability to follow a curve.", true);
@@ -207,40 +222,55 @@ class TestsCurve extends TuningOpMode<Boolean> {
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Follower follower = followerFunction.apply(hardwareMap);
-        follower.setPose(Pose.zero());
 
-        boolean forward = true;
+        try {
+            follower.setPose(Pose.zero());
 
-        Path path1 = curve(Pose.zero(), new Pose(distance + 0,0), new Pose(distance,distance)).tangent();
-        Path path2 = curve(new Pose(distance,distance), new Pose(distance,0), Pose.zero()).tangent();
+            Path forwardPath = curve(
+                    Pose.zero(),
+                    new Pose(distance, 0),
+                    new Pose(distance, distance)
+            ).tangent();
 
-        Thread.sleep(1000);
-        waitForStart();
-        follower.setPose(Pose.zero());
-        follower.update();
-        follower.follow(path1);
+            Path returnPath = curve(
+                    new Pose(distance, distance),
+                    new Pose(distance, 0),
+                    Pose.zero()
+            ).tangent();
 
-        while (opModeIsActive()) {
+            boolean followingForward = true;
+
+            Thread.sleep(1000);
+            waitForStart();
+            follower.setPose(Pose.zero());
             follower.update();
-            if (follower.atParametricEnd()) {
-                if (forward) {
-                    follower.follow(path2);
-                } else {
-                    follower.follow(path1);
+            follower.follow(forwardPath);
+
+            while (opModeIsActive()) {
+                follower.update();
+
+                if (follower.atParametricEnd()) {
+                    follower.follow(followingForward ? returnPath : forwardPath);
+                    followingForward = !followingForward;
                 }
-                forward = !forward;
+
+                idle();
             }
+        } finally {
+            follower.stop();
         }
+
         return true;
     }
 }
 
 class TestsInterpolation extends TuningOpMode<Boolean> {
-    Function<HardwareMap, Follower> followerFunction;
-    double distance;
+    private final Function<HardwareMap, Follower> followerFunction;
+    private final double distance;
 
     public TestsInterpolation(Function<HardwareMap, Follower> followerFunction, double distance) {
-        super("Interpolation Curve Test", "Tests the Follower's ability to follow a curve with several interpolations.", true);
+        super("Interpolation Curve Test",
+                "Tests the Follower's ability to follow a curve with several interpolations.", true);
         this.followerFunction = followerFunction;
         this.distance = distance;
     }
@@ -248,30 +278,46 @@ class TestsInterpolation extends TuningOpMode<Boolean> {
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Follower follower = followerFunction.apply(hardwareMap);
-        follower.setPose(Pose.zero());
 
-        boolean forward = true;
+        try {
+            follower.setPose(Pose.zero());
 
-        Path path1 = curve(Pose.zero(), new Pose(distance + 0,0), new Pose(distance,distance)).heading((curve, t) -> Math.PI);
-        Path path2 = curve(new Pose(distance,distance), new Pose(distance,0), Pose.zero()).heading(Interpolator.piecewise().until(0.5, Interpolator.tangent).until(1.0, Interpolator.constant(0)));
+            Path forwardPath = curve(
+                    Pose.zero(),
+                    new Pose(distance, 0),
+                    new Pose(distance, distance)
+            ).heading((path, t) -> Math.PI);
 
-        Thread.sleep(1000);
-        waitForStart();
-        follower.setPose(Pose.zero());
-        follower.update();
-        follower.follow(path1);
+            Path returnPath = curve(
+                    new Pose(distance, distance),
+                    new Pose(distance, 0),
+                    Pose.zero()
+            ).heading(Interpolator.piecewise()
+                    .until(0.5, Interpolator.tangent)
+                    .until(1.0, Interpolator.constant(0)));
 
-        while (opModeIsActive()) {
+            boolean followingForward = true;
+
+            Thread.sleep(1000);
+            waitForStart();
+            follower.setPose(Pose.zero());
             follower.update();
-            if (follower.atParametricEnd()) {
-                if (forward) {
-                    follower.follow(path2);
-                } else {
-                    follower.follow(path1);
+            follower.follow(forwardPath);
+
+            while (opModeIsActive()) {
+                follower.update();
+
+                if (follower.atParametricEnd()) {
+                    follower.follow(followingForward ? returnPath : forwardPath);
+                    followingForward = !followingForward;
                 }
-                forward = !forward;
+
+                idle();
             }
+        } finally {
+            follower.stop();
         }
+
         return true;
     }
 }
@@ -281,7 +327,7 @@ class TestsLocalization extends TuningOpMode<Boolean> {
     Function<HardwareMap, Localizer> localizerFunction;
 
     public TestsLocalization(Function<HardwareMap, Drivetrain> drivetrainFunction, Function<HardwareMap, Localizer> localizerFunction) {
-        super("Localization Test", "Verifies localization and manual control.", true);
+        super("Odometry Test", "Checks the direction and scale of both odometry axes and heading.", true);
         this.drivetrainFunction = drivetrainFunction;
         this.localizerFunction = localizerFunction;
     }
@@ -291,47 +337,51 @@ class TestsLocalization extends TuningOpMode<Boolean> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
-        localizer.setPose(Pose.zero());
+        try {
+            localizer.setPose(Pose.zero());
 
-        Thread.sleep(1000);
-        waitForStart();
-        localizer.setPose(Pose.zero());
+            Thread.sleep(1000);
+            waitForStart();
+            localizer.setPose(Pose.zero());
 
-        while (opModeIsActive()) {
-            drivetrain.drive(new DrivePowers(-gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x), true);
-            localizer.update();
-            telemetry.addData("Pose", localizer.pose());
-            telemetry.update();
+            while (opModeIsActive()) {
+                drivetrain.drive(new DrivePowers(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x,
+                        -gamepad1.right_stick_x
+                ), true);
+                localizer.update();
+                telemetry.addData("Pose", localizer.pose());
+                telemetry.update();
+                idle();
+            }
+        } finally {
+            drivetrain.stop();
         }
         return true;
     }
 }
 
 class TestsOdometry extends TuningOpMode<Boolean> {
-    Function<HardwareMap, Drivetrain> drivetrainFunction;
-    Function<HardwareMap, Localizer> localizerFunction;
+    private enum Test { FORWARD, LEFT, TURN, IDLE }
 
-    public enum Test {
-        FORWARD,
-        LEFT,
-        TURN,
-        IDLE
-    }
-
-    private Test test = Test.FORWARD;
-    public static double POWER = 0.5;
-
-    double totalHeading;
-    double prevHeading;
-
+    private final Function<HardwareMap, Drivetrain> drivetrainFunction;
+    private final Function<HardwareMap, Localizer> localizerFunction;
     private final ElapsedTime timer = new ElapsedTime();
 
-    private boolean passedX = false;
-    private boolean passedY = false;
-    private boolean passedHeading = false;
+    private Test test = Test.FORWARD;
+    private double totalHeading;
+    private double previousHeading;
+    private boolean passedX;
+    private boolean passedY;
+    private boolean passedHeading;
 
-    public TestsOdometry(Function<HardwareMap, Drivetrain> drivetrainFunction, Function<HardwareMap, Localizer> localizerFunction) {
-        super("Localization Test", "Verifies localization and manual control.", true);
+    public static double POWER = 0.5;
+
+    public TestsOdometry(
+            Function<HardwareMap, Drivetrain> drivetrainFunction,
+            Function<HardwareMap, Localizer> localizerFunction) {
+        super("Odometry Test", "Checks the direction and scale of both odometry axes and heading.", true);
         this.drivetrainFunction = drivetrainFunction;
         this.localizerFunction = localizerFunction;
     }
@@ -341,98 +391,106 @@ class TestsOdometry extends TuningOpMode<Boolean> {
         Localizer localizer = localizerFunction.apply(hardwareMap);
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
 
-        localizer.setPose(Pose.zero());
+        try {
+            localizer.setPose(Pose.zero());
+            Thread.sleep(1000);
+            waitForStart();
+            localizer.setPose(Pose.zero());
+            timer.reset();
 
-        Thread.sleep(1000);
-        waitForStart();
-        localizer.setPose(Pose.zero());
+            while (opModeIsActive()) {
+                localizer.update();
 
-        timer.reset();
+                if (localizer.pose().x() != 0
+                        || localizer.pose().y() != 0
+                        || localizer.pose().heading() != 0) {
+                    double heading = localizer.pose().heading();
+                    totalHeading += Angle.normalizeSigned(heading - previousHeading);
+                    previousHeading = heading;
+                }
 
-        while (opModeIsActive()) {
-            localizer.update();
+                switch (test) {
+                    case FORWARD:
+                        drivetrain.drive(new DrivePowers(POWER, 0, 0), false);
+                        if (timer.seconds() > 1) {
+                            test = Test.LEFT;
+                            timer.reset();
+                        }
+                        break;
 
-            if (localizer.pose().x() != Pose.zero().x() || localizer.pose().y() != Pose.zero().y() || localizer.pose().heading() != Pose.zero().heading()) {
-                double currentHeading = localizer.pose().heading();
-                totalHeading += Angle.normalizeSigned(currentHeading - prevHeading);
-                prevHeading = currentHeading;
+                    case LEFT:
+                        drivetrain.drive(new DrivePowers(0, POWER, 0), false);
+                        if (timer.seconds() > 1) {
+                            test = Test.TURN;
+                            timer.reset();
+                            previousHeading = localizer.pose().heading();
+                            totalHeading = 0;
+                        }
+                        break;
+
+                    case TURN:
+                        drivetrain.drive(new DrivePowers(0, 0, POWER), false);
+                        if (timer.seconds() > 1) {
+                            test = Test.IDLE;
+                            timer.reset();
+                        }
+                        break;
+
+                    case IDLE:
+                        drivetrain.stop();
+                        telemetry.addData("Test", "completed");
+                        Pose measuredPose = localizer.pose();
+                        passedX = reportAxisResult("X pod", measuredPose.x(), 2, 144);
+                        passedY = reportAxisResult("Y pod", measuredPose.y(), 2, 144);
+                        passedHeading = reportHeadingResult(totalHeading);
+                        break;
+                }
+
+                telemetry.addData("Pose", localizer.pose());
+                telemetry.update();
+                idle();
             }
-
-            switch (test) {
-                case FORWARD:
-                    drivetrain.drive(new DrivePowers(POWER, 0, 0), false);
-
-                    if (timer.seconds() > 1) {
-                        test = Test.LEFT;
-                        timer.reset();
-                    }
-                    break;
-                case LEFT:
-                    drivetrain.drive(new DrivePowers(0, POWER, 0), false);
-
-                    if (timer.seconds() > 1) {
-                        test = Test.TURN;
-                        timer.reset();
-
-                        prevHeading = localizer.pose().heading();
-                        totalHeading = 0;
-                    }
-                    break;
-                case TURN:
-                    drivetrain.drive(new DrivePowers(0, 0, POWER), false);
-
-                    if (timer.seconds() > 1) {
-                        test = Test.IDLE;
-                        timer.reset();
-                    }
-                    break;
-                case IDLE:
-                    drivetrain.drive(new DrivePowers(0, 0, 0), true);
-
-                    telemetry.addData("Test", "Completed");
-
-                    Pose pose = localizer.pose();
-
-                    if (pose.x() < 0)
-                        telemetry.addData("xPod Direction", "Flipped");
-                    else if (pose.x() < 2)
-                        telemetry.addData("xPod Resolution", "Too high");
-                    else if (pose.x() > 144)
-                        telemetry.addData("xPod Resolution", "Too low");
-                    else {
-                        telemetry.addData("xPod", "Good");
-                        passedX = true;
-                    }
-
-                    if (pose.y() < 0)
-                        telemetry.addData("yPod Direction", "Flipped");
-                    else if (pose.y() < 2)
-                        telemetry.addData("yPod Resolution", "Too high");
-                    else if (pose.y() > 144)
-                        telemetry.addData("yPod Resolution", "Too low");
-                    else {
-                        telemetry.addData("yPod", "Good");
-                        passedY = true;
-                    }
-
-                    if (totalHeading < 0)
-                        telemetry.addData("Heading Direction", "Flipped");
-                    else if (totalHeading < 0.02)
-                        telemetry.addData("Heading Resolution", "Too high");
-                    else if (totalHeading > 2 * Math.PI)
-                        telemetry.addData("Heading Resolution", "Too low");
-                    else {
-                        telemetry.addData("Heading", "Good");
-                        passedHeading = true;
-                    }
-
-                    break;
-            }
-
-            telemetry.addData("Pose", localizer.pose());
-            telemetry.update();
+        } finally {
+            drivetrain.stop();
         }
+
         return passedX && passedY && passedHeading;
+    }
+
+    private boolean reportAxisResult(String name, double value, double minimum, double maximum) {
+        if (value < 0) {
+            telemetry.addData(name + " direction", "flipped");
+            return false;
+        }
+        if (value < minimum) {
+            telemetry.addData(name + " scale", "too small");
+            return false;
+        }
+        if (value > maximum) {
+            telemetry.addData(name + " scale", "too large");
+            return false;
+        }
+
+        telemetry.addData(name, "good");
+        return true;
+    }
+
+    private boolean reportHeadingResult(double headingChange) {
+        if (headingChange < 0) {
+            telemetry.addData("Heading direction", "flipped");
+            return false;
+        }
+        if (headingChange < 0.02) {
+            telemetry.addData("Heading scale", "too small");
+            return false;
+        }
+        if (headingChange > 2 * Math.PI) {
+            telemetry.addData("Heading scale", "too large");
+            return false;
+        }
+
+        telemetry.addData("Heading", "good");
+        return true;
     }
 }
 
@@ -447,36 +505,49 @@ class TestsDriving extends TuningOpMode<Boolean> {
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Drivetrain drivetrain = drivetrainFunction.apply(hardwareMap);
-        waitForStart();
-        while (opModeIsActive()) {
-            drivetrain.drive(new DrivePowers(-gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x), true);
+        try {
+            waitForStart();
+            while (opModeIsActive()) {
+                drivetrain.drive(new DrivePowers(
+                        -gamepad1.left_stick_y,
+                        gamepad1.left_stick_x,
+                        gamepad1.right_stick_x
+                ), true);
+                idle();
+            }
+        } finally {
+            drivetrain.stop();
         }
         return true;
     }
 }
 
 class TestsPose extends TuningOpMode<Boolean> {
-    Function<HardwareMap, Localizer> localizerFunction;
+    private final Function<HardwareMap, Localizer> localizerFunction;
 
     public TestsPose(Function<HardwareMap, Localizer> localizerFunction) {
-        super("Pose Test", "Verifies localizer output without a drivetrain.", true);
+        super("Pose Test", "Displays live localization without commanding the drivetrain.", true);
         this.localizerFunction = localizerFunction;
     }
 
     @Override
     public Boolean runTuningOpMode() throws InterruptedException {
         Localizer localizer = localizerFunction.apply(hardwareMap);
+
+        localizer.setPose(Pose.zero());
         Thread.sleep(1000);
         waitForStart();
         localizer.setPose(Pose.zero());
         localizer.update();
+
         while (opModeIsActive()) {
             localizer.update();
-            telemetry.addData("Pose", localizer.pose());
+            telemetry.addData("Robot pose", localizer.pose());
             telemetry.update();
+            idle();
         }
+
         return true;
     }
 }
-
 

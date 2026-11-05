@@ -1,70 +1,86 @@
 # Robot tests
 
-These are the OpModes currently in the Driver Station menu.
+Use the Driver Station hardware names shown in this guide.
 
 | OpMode | What it checks | Needs |
 |---|---|---|
-| TeleOp - Manual (No Pedro) | Mecanum drive and mechanism controls | Four drive motors; installed mechanism motors |
-| TeleOp - Pedro + Pinpoint | Manual drive and pose telemetry through Pedro | Tuned Mecanum, Pinpoint, and Foresight settings |
-| TeleOp - No Shooting | Drive and intake without outtake power | Four drive motors; intake; transfer only if configured |
-| Auto - Forward Test | Brief forward movement | Four drive motors |
-| Auto - Path Test (No Mechanisms) | Pedro path following with pauses at test points | Tuned Pedro setup and measured field/robot dimensions |
-| Motor - Individual Test | One motor at a time | Any motor being tested |
-| Camera - AprilTag Test | Webcam preview and tag detection | Webcam 2 |
+| **TeleOp - Manual (No Pedro)** | Manual mecanum drive and mechanism controls | Four drive motors; installed mechanisms |
+| **TeleOp - Pedro + Pinpoint** | Manual drive and pose telemetry | Tuned Mecanum, Pinpoint, and Foresight |
+| **TeleOp - No Shooting** | Drive and intake without outtake power | Four drive motors and intake |
+| **Auto - Forward Test** | Short forward movement | Four drive motors |
+| **TEST - Pedro Path (No Mechanisms)** | Lane, Hive, Flower, and return route | Tuned Pedro setup and measured `FieldConfig.java` values |
+| **TEST - Individual Motor** | One motor at a time | Installed motors |
+| **Camera - AprilTag Test** | Webcam preview and tag detection | Configured webcam |
 
 ## Hardware names
 
-The drive names and directions are in **pedro/Constants.java**:
+Drive names and directions are in `pedro/Constants.java`:
 
-- Front left: **fl**
-- Front right: **fr**
-- Back left: **bl**
-- Back right: **br**
-- Pinpoint: **odom**
+- Front left: `fl`
+- Front right: `fr`
+- Back left: `bl`
+- Back right: `br`
+- Pinpoint: `odom`
 
-Mechanism names are in **RobotConfig.java**:
+Mechanism names and directions are in `RobotConfig.java`:
 
-- Intake: **intake**
+- Intake: `intake`
 - Transfer: blank by default, so it is not looked up
-- Left outtake: **ol**
-- Right outtake: **or**
-- Webcam: **Webcam 2**
+- Left outtake: `ol`
+- Right outtake: `or`
+- Webcam: `Webcam 2`
 
-The code names and the Driver Station names must match. Check the actual robot configuration rather than assuming that these names are already correct.
+The Driver Station names must match. Check the actual robot configuration.
 
 ## Controls
 
-Gamepad 1 is the driver in the manual TeleOps:
+Gamepad 1 drives in each manual TeleOp:
 
 - Left stick: forward, back, and strafe
 - Right stick X: turn
 
-In TeleOp - Manual (No Pedro) and TeleOp - Pedro + Pinpoint, Gamepad 2 controls the mechanisms:
+Gamepad 2 controls mechanisms in TeleOp - Manual and TeleOp - Pedro:
 
-- Left bumper: run the intake sequence
-- Right bumper: run both outtakes
-- Hold Back for direct testing: left stick Y controls intake, right stick Y controls transfer, left trigger controls the left outtake, and right trigger controls the right outtake
+- Left bumper: timed intake sequence
+- Right bumper: timed outtake sequence
+- Hold Back for direct testing: left stick Y controls intake, right stick Y controls transfer, triggers control the outtakes
 
-TeleOp - No Shooting uses the intake controls only. It never sends nonzero power to either outtake.
+TeleOp - No Shooting never sends nonzero power to either outtake.
 
-## First test on the robot
+## Individual motor test
 
-1. Check the hardware names in the Driver Station.
-2. Raise or secure the robot so the wheels and mechanisms cannot hit the floor, field, or anyone nearby.
-3. Open Motor - Individual Test. Select each installed motor with D-pad left/right, hold A, and start with a small amount of left-stick movement. Only the selected motor should run.
-4. Use Auto - Forward Test for a short movement check. Its starting power and duration are in RobotConfig.java; adjust them only after checking the robot is secure.
-5. Use TeleOp - Manual (No Pedro) to check driving and the installed mechanisms.
-6. Set up Pedro before using TeleOp - Pedro + Pinpoint or Auto - Path Test.
-7. Run the camera test separately.
+- D-pad left/right selects the motor.
+- The screen shows its physical position, Driver Station name, and configured direction.
+- Hold A and move the left stick Y to run it.
+- Test power is limited by `MOTOR_TEST_MAX_POWER` in `RobotConfig.java`.
+
+Raise the robot and keep everyone clear of moving parts. Confirm the selected physical motor is the only motor that moves before increasing power.
+
+## First drive test
+
+1. Secure the robot on blocks.
+2. Use TEST - Individual Motor to check each wheel and mechanism.
+3. Correct motor directions before putting the robot on the floor.
+4. Use Auto - Forward Test for a short movement check.
+5. Use TeleOp - Manual (No Pedro) to check normal driving.
+6. Tune Pedro before using TeleOp - Pedro + Pinpoint or TEST - Pedro Path.
+
+## Path test selections
+
+In INIT:
+
+- X changes Red/Blue.
+- D-pad left/right changes start position.
+- D-pad up/down changes Flower.
+- A switches Inside/Outside lane.
+- B switches Audience-side/Field-side Hive cell.
+
+The INIT screen displays each waypoint and its robot-center coordinate. The coordinate convention and route are in [FIELD_PATHS.md](FIELD_PATHS.md).
+
+The path test sets the follower's starting pose. That sets the localizer's estimate; it does not locate or move the robot. Put the robot's center at the displayed start pose and heading before pressing Play.
 
 ## Mechanism behavior
 
-The intake, transfer, and shooting presets are timed. The code cannot tell whether a game piece actually moved.
+Intake, transfer, and shooting presets are timed. There are no sensors confirming that a game piece moved.
 
-A blank transfer name disables the transfer motor and lets the intake run by itself. If a transfer name is entered but that motor is missing, the combined intake sequence will not start. The shooting preset needs both outtake motors; if either is missing, it will not run.
-
-## Forward test
-
-Auto - Forward Test drives forward at the configured power for the configured time, then stops. It is only a drivetrain check. It does not guarantee that the robot will earn LEAVE points or reach the Loading Zone for PARK.
-
-For the Pedro path test, see [PEDRO_AND_ROBOT_GUIDE.md](PEDRO_AND_ROBOT_GUIDE.md).
+A blank transfer name disables transfer. If transfer is configured but the motor is missing, the intake sequence will not start. Shooting needs both outtake motors. If either is missing, the shooting sequence will not start.

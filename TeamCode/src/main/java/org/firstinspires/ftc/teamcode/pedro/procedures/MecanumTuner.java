@@ -22,6 +22,10 @@ public class MecanumTuner extends Procedure {
         Inputs.Field<String> backLeftName = motorNames.s("Back Left Name");
         Inputs.Field<String> backRightName = motorNames.s("Back Right Name");
         awaitInputs(motorNames);
+        validateMotorNames(
+                frontLeftName.get(), frontRightName.get(),
+                backLeftName.get(), backRightName.get()
+        );
 
         confirmation("Motor Directions", "Each drivetrain motor will spin, one at a time. After each one, you will enter whether it spun forward or reversed. You may use the interactive diagram to see which wheel should be spinning and which direction is forward.");
 
@@ -51,6 +55,19 @@ public class MecanumTuner extends Procedure {
                 "});");
     }
 
+    private void validateMotorNames(String... names) {
+        for (int i = 0; i < names.length; i++) {
+            if (names[i] == null || names[i].trim().isEmpty()) {
+                throw new IllegalArgumentException("Every drive motor needs a HardwareMap name.");
+            }
+            for (int j = i + 1; j < names.length; j++) {
+                if (names[i].trim().equals(names[j].trim())) {
+                    throw new IllegalArgumentException("Each drive wheel must use a different motor name.");
+                }
+            }
+        }
+    }
+
     private Direction testMotor(Wheel wheel, String displayName, String hardwareName) throws InterruptedException {
         final boolean[] correctMotor = new boolean[1];
         final Direction[] direction = new Direction[1];
@@ -59,7 +76,7 @@ public class MecanumTuner extends Procedure {
             runOpMode(new SpinMotor(displayName, hardwareName));
 
             Inputs inputs = inputs(displayName, "Determine the " + displayName.toLowerCase() + " motor direction.");
-            Inputs.Field<Boolean> correctMotorField = inputs.b("Did the " + displayName.toLowerCase() + " motor spin?").withDefault(true);
+            Inputs.Field<Boolean> correctMotorField = inputs.b("Did the " + displayName.toLowerCase() + " motor spin?").withDefault(false);
             Inputs.Field<Direction> directionField = inputs.e("Which way did the motor spin?", Direction.class);
             awaitInputs(inputs);
 

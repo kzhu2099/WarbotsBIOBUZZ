@@ -11,142 +11,110 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 import java.util.StringJoiner;
 
 public final class RobotHardware {
-    private final DcMotorEx fl;
-    private final DcMotorEx fr;
-    private final DcMotorEx bl;
-    private final DcMotorEx br;
+    private final DcMotorEx frontLeft;
+    private final DcMotorEx frontRight;
+    private final DcMotorEx backLeft;
+    private final DcMotorEx backRight;
 
-    public RobotHardware(HardwareMap map) {
-        fl = setup(map, Constants.FRONT_LEFT_NAME, Constants.FRONT_LEFT_DIRECTION);
-        fr = setup(map, Constants.FRONT_RIGHT_NAME, Constants.FRONT_RIGHT_DIRECTION);
-        bl = setup(map, Constants.BACK_LEFT_NAME, Constants.BACK_LEFT_DIRECTION);
-        br = setup(map, Constants.BACK_RIGHT_NAME, Constants.BACK_RIGHT_DIRECTION);
+    public RobotHardware(HardwareMap hardwareMap) {
+        frontLeft = findMotor(hardwareMap, Constants.FRONT_LEFT_NAME, Constants.FRONT_LEFT_DIRECTION);
+        frontRight = findMotor(hardwareMap, Constants.FRONT_RIGHT_NAME, Constants.FRONT_RIGHT_DIRECTION);
+        backLeft = findMotor(hardwareMap, Constants.BACK_LEFT_NAME, Constants.BACK_LEFT_DIRECTION);
+        backRight = findMotor(hardwareMap, Constants.BACK_RIGHT_NAME, Constants.BACK_RIGHT_DIRECTION);
     }
 
     public boolean driveReady() {
-        return fl != null && fr != null && bl != null && br != null;
+        return frontLeft != null && frontRight != null && backLeft != null && backRight != null;
     }
 
     public String missingDriveMotors() {
         StringJoiner missing = new StringJoiner(", ");
-        addMissing(missing, Constants.FRONT_LEFT_NAME, fl);
-        addMissing(missing, Constants.FRONT_RIGHT_NAME, fr);
-        addMissing(missing, Constants.BACK_LEFT_NAME, bl);
-        addMissing(missing, Constants.BACK_RIGHT_NAME, br);
+        addMissing(missing, Constants.FRONT_LEFT_NAME, frontLeft);
+        addMissing(missing, Constants.FRONT_RIGHT_NAME, frontRight);
+        addMissing(missing, Constants.BACK_LEFT_NAME, backLeft);
+        addMissing(missing, Constants.BACK_RIGHT_NAME, backRight);
         return missing.toString();
     }
 
-    // Robot-centric mecanum: forward, strafe, turn.
     public void drive(double forward, double strafe, double turn) {
         if (!driveReady()) {
             stopDrive();
             return;
         }
 
-        double leftFront = forward - strafe - turn;
-        double rightFront = forward + strafe + turn;
-        double leftBack = forward + strafe - turn;
-        double rightBack = forward - strafe + turn;
-        double scale = Math.max(1.0, Math.max(
-                Math.max(Math.abs(leftFront), Math.abs(rightFront)),
-                Math.max(Math.abs(leftBack), Math.abs(rightBack))));
+        double frontLeftPower = forward - strafe - turn;
+        double frontRightPower = forward + strafe + turn;
+        double backLeftPower = forward + strafe - turn;
+        double backRightPower = forward - strafe + turn;
 
-        fl.setPower(leftFront / scale);
-        fr.setPower(rightFront / scale);
-        bl.setPower(leftBack / scale);
-        br.setPower(rightBack / scale);
+        double largestPower = Math.max(
+                Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower)),
+                Math.max(Math.abs(backLeftPower), Math.abs(backRightPower)));
+        double scale = Math.max(1.0, largestPower);
+
+        frontLeft.setPower(frontLeftPower / scale);
+        frontRight.setPower(frontRightPower / scale);
+        backLeft.setPower(backLeftPower / scale);
+        backRight.setPower(backRightPower / scale);
     }
 
     public void stopDrive() {
-        stopMotor(fl);
-        stopMotor(fr);
-        stopMotor(bl);
-        stopMotor(br);
+        stopMotor(frontLeft);
+        stopMotor(frontRight);
+        stopMotor(backLeft);
+        stopMotor(backRight);
     }
 
-    public static final class Mechanisms {
-        private enum Action { OFF, INTAKE, TRANSFER, SHOOT, MANUAL }
+    public static final class MechanismController {
+        private enum Action { STOPPED, INTAKING, TRANSFERRING, SHOOTING, MANUAL }
 
-        private final DcMotorEx intake;
-        private final DcMotorEx transfer;
-        private final DcMotorEx ol;
-        private final DcMotorEx or;
+        private final DcMotorEx intakeMotor;
+        private final DcMotorEx transferMotor;
+        private final DcMotorEx leftOuttakeMotor;
+        private final DcMotorEx rightOuttakeMotor;
         private final boolean shootingEnabled;
 
-        private Action action = Action.OFF;
-        private double startedAt;
-        private boolean lastIntake;
-        private boolean lastShoot;
+        private Action action = Action.STOPPED;
+        private double actionStartedAt;
+        private boolean lastIntakeButton;
+        private boolean lastShootButton;
 
-        public Mechanisms(HardwareMap map, boolean shootingEnabled) {
+        public MechanismController(HardwareMap hardwareMap, boolean shootingEnabled) {
             this.shootingEnabled = shootingEnabled;
-            intake = setup(map, RobotConfig.INTAKE, RobotConfig.INTAKE_DIRECTION);
-            transfer = RobotConfig.transferEnabled()
-                    ? setup(map, RobotConfig.TRANSFER, RobotConfig.TRANSFER_DIRECTION) : null;
-            ol = setup(map, RobotConfig.OL, RobotConfig.OL_DIRECTION);
-            or = setup(map, RobotConfig.OR, RobotConfig.OR_DIRECTION);
+            intakeMotor = findMotor(hardwareMap,
+                    RobotConfig.INTAKE_MOTOR_NAME, RobotConfig.INTAKE_MOTOR_DIRECTION);
+            transferMotor = RobotConfig.transferEnabled()
+                    ? findMotor(hardwareMap, RobotConfig.TRANSFER_MOTOR_NAME,
+                    RobotConfig.TRANSFER_MOTOR_DIRECTION) : null;
+            leftOuttakeMotor = findMotor(hardwareMap,
+                    RobotConfig.LEFT_OUTTAKE_MOTOR_NAME, RobotConfig.LEFT_OUTTAKE_MOTOR_DIRECTION);
+            rightOuttakeMotor = findMotor(hardwareMap,
+                    RobotConfig.RIGHT_OUTTAKE_MOTOR_NAME, RobotConfig.RIGHT_OUTTAKE_MOTOR_DIRECTION);
         }
 
         public void update(double now, Gamepad gamepad) {
-            boolean intakePressed = gamepad.left_bumper && !lastIntake;
-            boolean shootPressed = gamepad.right_bumper && !lastShoot;
-            lastIntake = gamepad.left_bumper;
-            lastShoot = gamepad.right_bumper;
+            boolean intakePressed = gamepad.left_bumper && !lastIntakeButton;
+            boolean shootPressed = gamepad.right_bumper && !lastShootButton;
+            lastIntakeButton = gamepad.left_bumper;
+            lastShootButton = gamepad.right_bumper;
 
             if (gamepad.back) {
-                action = Action.MANUAL;
-                set(intake, -gamepad.left_stick_y * RobotConfig.INTAKE_POWER);
-                set(transfer, -gamepad.right_stick_y * RobotConfig.TRANSFER_POWER);
-                if (shootingEnabled) {
-                    set(ol, gamepad.left_trigger * RobotConfig.OL_POWER);
-                    set(or, gamepad.right_trigger * RobotConfig.OR_POWER);
-                }
+                runManualControls(gamepad);
                 return;
             }
 
             if (action == Action.MANUAL) {
                 stopMechanisms();
-                action = Action.OFF;
+                action = Action.STOPPED;
             }
 
-            // A new shot interrupts intake. A second press does not restart an active shot.
-            if (shootingEnabled && shootPressed && action != Action.SHOOT) {
-                stopMechanisms();
-                action = Action.OFF;
-                if (ol != null && or != null) {
-                    set(ol, RobotConfig.OL_POWER);
-                    set(or, RobotConfig.OR_POWER);
-                    action = Action.SHOOT;
-                    startedAt = now;
-                }
-            } else if (intakePressed && action == Action.OFF) {
-                stopMechanisms();
-                if (intake != null && (!RobotConfig.transferEnabled() || transfer != null)) {
-                    set(intake, RobotConfig.INTAKE_POWER);
-                    action = Action.INTAKE;
-                    startedAt = now;
-                }
+            if (shootingEnabled && shootPressed && action != Action.SHOOTING) {
+                startShooting(now);
+            } else if (intakePressed && action == Action.STOPPED) {
+                startIntake(now);
             }
 
-            if (action == Action.INTAKE && now - startedAt >= RobotConfig.INTAKE_SECONDS) {
-                set(intake, 0);
-                if (transfer != null) {
-                    set(transfer, RobotConfig.TRANSFER_POWER);
-                    action = Action.TRANSFER;
-                    startedAt = now;
-                } else {
-                    action = Action.OFF;
-                }
-            } else if (action == Action.TRANSFER
-                    && now - startedAt >= RobotConfig.TRANSFER_SECONDS) {
-                set(transfer, 0);
-                action = Action.OFF;
-            } else if (action == Action.SHOOT
-                    && now - startedAt >= RobotConfig.SHOOT_SECONDS) {
-                set(ol, 0);
-                set(or, 0);
-                action = Action.OFF;
-            }
+            updateTimedAction(now);
         }
 
         public String action() {
@@ -155,59 +123,127 @@ public final class RobotHardware {
 
         public String missingMotors() {
             StringJoiner missing = new StringJoiner(", ");
-            addMissing(missing, RobotConfig.INTAKE, intake);
-            if (RobotConfig.transferEnabled()) addMissing(missing, RobotConfig.TRANSFER, transfer);
+            addMissing(missing, RobotConfig.INTAKE_MOTOR_NAME, intakeMotor);
+            if (RobotConfig.transferEnabled()) {
+                addMissing(missing, RobotConfig.TRANSFER_MOTOR_NAME, transferMotor);
+            }
             if (shootingEnabled) {
-                addMissing(missing, RobotConfig.OL, ol);
-                addMissing(missing, RobotConfig.OR, or);
+                addMissing(missing, RobotConfig.LEFT_OUTTAKE_MOTOR_NAME, leftOuttakeMotor);
+                addMissing(missing, RobotConfig.RIGHT_OUTTAKE_MOTOR_NAME, rightOuttakeMotor);
             }
             return missing.toString();
         }
 
         public String missingOuttakeMotors() {
             StringJoiner missing = new StringJoiner(", ");
-            addMissing(missing, RobotConfig.OL, ol);
-            addMissing(missing, RobotConfig.OR, or);
+            addMissing(missing, RobotConfig.LEFT_OUTTAKE_MOTOR_NAME, leftOuttakeMotor);
+            addMissing(missing, RobotConfig.RIGHT_OUTTAKE_MOTOR_NAME, rightOuttakeMotor);
             return missing.toString();
         }
 
         public void stop() {
             stopMechanisms();
-            action = Action.OFF;
+            action = Action.STOPPED;
+        }
+
+        private void runManualControls(Gamepad gamepad) {
+            action = Action.MANUAL;
+            setMotorPower(intakeMotor, -gamepad.left_stick_y * RobotConfig.INTAKE_POWER);
+            setMotorPower(transferMotor, -gamepad.right_stick_y * RobotConfig.TRANSFER_POWER);
+
+            if (shootingEnabled) {
+                setMotorPower(leftOuttakeMotor,
+                        gamepad.left_trigger * RobotConfig.LEFT_OUTTAKE_POWER);
+                setMotorPower(rightOuttakeMotor,
+                        gamepad.right_trigger * RobotConfig.RIGHT_OUTTAKE_POWER);
+            }
+        }
+
+        private void startIntake(double now) {
+            if (intakeMotor == null || (RobotConfig.transferEnabled() && transferMotor == null)) {
+                return;
+            }
+
+            stopMechanisms();
+            setMotorPower(intakeMotor, RobotConfig.INTAKE_POWER);
+            action = Action.INTAKING;
+            actionStartedAt = now;
+        }
+
+        private void startShooting(double now) {
+            stopMechanisms();
+            if (leftOuttakeMotor == null || rightOuttakeMotor == null) {
+                action = Action.STOPPED;
+                return;
+            }
+
+            setMotorPower(leftOuttakeMotor, RobotConfig.LEFT_OUTTAKE_POWER);
+            setMotorPower(rightOuttakeMotor, RobotConfig.RIGHT_OUTTAKE_POWER);
+            action = Action.SHOOTING;
+            actionStartedAt = now;
+        }
+
+        private void updateTimedAction(double now) {
+            if (action == Action.INTAKING && now - actionStartedAt >= RobotConfig.INTAKE_SECONDS) {
+                setMotorPower(intakeMotor, 0);
+                if (transferMotor != null) {
+                    setMotorPower(transferMotor, RobotConfig.TRANSFER_POWER);
+                    action = Action.TRANSFERRING;
+                    actionStartedAt = now;
+                } else {
+                    action = Action.STOPPED;
+                }
+            } else if (action == Action.TRANSFERRING
+                    && now - actionStartedAt >= RobotConfig.TRANSFER_SECONDS) {
+                setMotorPower(transferMotor, 0);
+                action = Action.STOPPED;
+            } else if (action == Action.SHOOTING
+                    && now - actionStartedAt >= RobotConfig.SHOOT_SECONDS) {
+                setMotorPower(leftOuttakeMotor, 0);
+                setMotorPower(rightOuttakeMotor, 0);
+                action = Action.STOPPED;
+            }
         }
 
         private void stopMechanisms() {
-            stopMotor(intake);
-            stopMotor(transfer);
-            stopMotor(ol);
-            stopMotor(or);
+            stopMotor(intakeMotor);
+            stopMotor(transferMotor);
+            stopMotor(leftOuttakeMotor);
+            stopMotor(rightOuttakeMotor);
         }
     }
 
-    private static DcMotorEx setup(HardwareMap map, String name, DcMotorSimple.Direction direction) {
-        if (name == null || name.trim().isEmpty()) return null;
+    private static DcMotorEx findMotor(
+            HardwareMap hardwareMap,
+            String hardwareName,
+            DcMotorSimple.Direction direction) {
+        if (hardwareName == null || hardwareName.trim().isEmpty()) return null;
+
         try {
-            DcMotorEx motor = map.get(DcMotorEx.class, name);
+            DcMotorEx motor = hardwareMap.get(DcMotorEx.class, hardwareName);
             motor.setPower(0);
             motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             motor.setDirection(direction);
             motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             return motor;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException exception) {
             return null;
         }
     }
 
-    private static void set(DcMotorEx motor, double power) {
-        if (motor != null) motor.setPower(Math.max(-1.0, Math.min(1.0, power)));
+    private static void setMotorPower(DcMotorEx motor, double power) {
+        if (motor != null) {
+            motor.setPower(Math.max(-1.0, Math.min(1.0, power)));
+        }
     }
 
     private static void stopMotor(DcMotorEx motor) {
         if (motor == null) return;
+
         try {
             motor.setPower(0);
         } catch (RuntimeException ignored) {
-            // Try to stop the remaining motors too.
+            // Keep stopping the remaining motors.
         }
     }
 

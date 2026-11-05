@@ -24,23 +24,24 @@ public class CameraTest extends OpMode {
         try {
             aprilTags = new AprilTagProcessor.Builder().build();
             camera = new VisionPortal.Builder()
-                    .setCamera(hardwareMap.get(WebcamName.class, RobotConfig.CAM1))
+                    .setCamera(hardwareMap.get(WebcamName.class, RobotConfig.WEBCAM_NAME))
                     .setCameraResolution(new Size(640, 480))
                     .enableLiveView(true)
                     .addProcessor(aprilTags)
                     .build();
-        } catch (RuntimeException e) {
-            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        } catch (RuntimeException exception) {
+            error = exception.getMessage() == null
+                    ? exception.getClass().getSimpleName() : exception.getMessage();
         }
     }
 
     @Override
     public void loop() {
         if (camera == null) {
-            telemetry.addData("cam1 / Webcam 2", "unavailable");
+            telemetry.addData("Camera", "unavailable");
             telemetry.addData("Error", error);
         } else {
-            telemetry.addData("cam1", camera.getCameraState());
+            telemetry.addData("Camera", camera.getCameraState());
 
             List<AprilTagDetection> detections = aprilTags.getDetections();
             telemetry.addData("AprilTags / clusters", detections.size());

@@ -12,6 +12,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import java.util.*;
 
 public class PinpointTuner extends Procedure {
+    static final double MIN_DIRECTION_TEST_INCHES = 1.0;
+
     enum PodType {
         SWING_ARM,
         FOUR_BAR,
@@ -27,6 +29,9 @@ public class PinpointTuner extends Procedure {
         Inputs.Field<String> pinpointName = inputs.s("HardwareMap Name").withDefault("pinpoint");
         Inputs.Field<PodType> podType = inputs.e("Odometry Pod Type", PodType.class).withDefault(PodType.FOUR_BAR);
         awaitInputs(inputs);
+        if (pinpointName.get() == null || pinpointName.get().trim().isEmpty()) {
+            throw new IllegalArgumentException("Enter the Pinpoint's Driver Station name.");
+        }
 
         OptionalDouble customPodScalar = OptionalDouble.empty();
 
@@ -153,6 +158,11 @@ class PinpointForwardDirection extends TuningOpMode<Boolean> {
             }
         }
 
+        if (Math.abs(x) < PinpointTuner.MIN_DIRECTION_TEST_INCHES) {
+            throw new IllegalStateException(
+                    "Pinpoint did not report forward movement. Push the robot several inches, then press Stop."
+            );
+        }
         return x < 0;
     }
 }
@@ -203,6 +213,11 @@ class PinpointStrafeDirection extends TuningOpMode<Boolean> {
             }
         }
 
+        if (Math.abs(y) < PinpointTuner.MIN_DIRECTION_TEST_INCHES) {
+            throw new IllegalStateException(
+                    "Pinpoint did not report leftward movement. Push the robot several inches, then press Stop."
+            );
+        }
         return y < 0;
     }
 }
