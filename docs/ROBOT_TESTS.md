@@ -50,7 +50,7 @@ TeleOp - No Shooting never sends nonzero power to either outtake.
 ## Individual motor test
 
 - D-pad left/right selects the motor.
-- The screen shows its physical position and Driver Station name.
+- The screen shows its physical position, Driver Station name, and configured direction.
 - Hold A and move the left stick Y to run it.
 - Test power is limited by `MOTOR_TEST_MAX_POWER` in `RobotConfig.java`.
 

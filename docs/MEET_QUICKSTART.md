@@ -51,10 +51,10 @@ The settings use full names such as `LEFT_OUTTAKE_MOTOR_NAME` and `INSIDE_LANE_X
 
 ## Test in this order
 
-1. Raise the robot. Use **TEST - Individual Motor** and confirm the named motor is the only one moving.
+1. Raise the robot. Use **TEST - Individual Motor** and confirm the named physical motor is the only one moving. The screen also shows its configured direction.
 2. Use **Auto - Forward Test** at its configured low power and short duration.
 3. Use **TeleOp - Manual (No Pedro)** to check normal driving.
-4. Use **TeleOp - Pedro + Pinpoint** only after all three Pedro configs are tuned.
+4. Use **TeleOp - Pedro + Pinpoint** only after all three Pedro configs are tuned. The Pinpoint HardwareMap name in AutoTune should be `odom`.
 5. Use **TEST - Pedro Path (No Mechanisms)** only after the field measurements are entered and the robot is placed at the displayed start pose.
 
 Keep hands, cables, and game pieces clear. Start with low power. Stop immediately if the robot moves in an unexpected direction.

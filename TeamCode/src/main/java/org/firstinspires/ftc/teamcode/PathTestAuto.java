@@ -98,7 +98,7 @@ public class PathTestAuto extends OpMode {
         readSelections();
 
         telemetry.addData("Alliance (X)", redAlliance ? "RED" : "BLUE");
-        telemetry.addData("Start (D-pad L/R)", start);
+        telemetry.addData("Start (D-pad L/R)", startDisplayName());
         telemetry.addData("Flower (D-pad U/D)", flower);
         telemetry.addData("Lane (A)", lane == Lane.INSIDE ? "INSIDE" : "OUTSIDE");
         telemetry.addData("Hive cell (B)",
@@ -265,7 +265,7 @@ public class PathTestAuto extends OpMode {
         addStep("Move from start to the selected lane", laneEntryPose, 0);
         addStep("Follow the " + lane.name().toLowerCase(Locale.US) + " lane to the Hive row",
                 laneAtHivePose, 0);
-        addStep("Approach the " + hiveSide.name().toLowerCase(Locale.US) + " Hive cell",
+        addStep("Approach the " + hiveSideDisplayName() + " Hive cell",
                 hiveApproachPose, RobotConfig.PATH_PAUSE_SECONDS);
 
         List<RoutePoint> flowerRoute = createFlowerRoute(
@@ -339,12 +339,32 @@ public class PathTestAuto extends OpMode {
 
         points.add(new RoutePoint(
                 flowerApproachPose,
-                "Approach the " + flower.name().toLowerCase(Locale.US) + " Flower",
+                "Approach the " + flowerDisplayName() + " Flower",
                 "",
                 RobotConfig.PATH_PAUSE_SECONDS
         ));
 
         return points;
+    }
+
+    private String startDisplayName() {
+        switch (start) {
+            case AUDIENCE_CORNER:
+                return "Audience-side corner";
+            case SCORING_CORNER:
+                return "Scoring-side corner";
+            case SIDE_WALL_CENTER:
+            default:
+                return "Alliance wall center";
+        }
+    }
+
+    private String hiveSideDisplayName() {
+        return hiveSide == HiveSide.FIELD ? "Field-side" : "Audience-side";
+    }
+
+    private String flowerDisplayName() {
+        return flower.name().replace('_', ' ').toLowerCase(Locale.US);
     }
 
     private boolean needsHiveBypass() {

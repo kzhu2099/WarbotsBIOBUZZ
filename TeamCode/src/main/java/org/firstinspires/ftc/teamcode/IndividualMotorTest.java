@@ -16,11 +16,14 @@ public class IndividualMotorTest extends OpMode {
     private static final class MotorChoice {
         final String physicalPosition;
         final String hardwareName;
+        final DcMotorSimple.Direction direction;
         DcMotorEx motor;
 
-        MotorChoice(String physicalPosition, String hardwareName) {
+        MotorChoice(String physicalPosition, String hardwareName,
+                    DcMotorSimple.Direction direction) {
             this.physicalPosition = physicalPosition;
             this.hardwareName = hardwareName;
+            this.direction = direction;
         }
     }
 
@@ -78,6 +81,7 @@ public class IndividualMotorTest extends OpMode {
         telemetry.addData("Selected motor", (selectedMotor + 1) + " of " + motors.size());
         telemetry.addData("Physical position", selected.physicalPosition);
         telemetry.addData("Driver Station name", selected.hardwareName);
+        telemetry.addData("Configured direction", selected.direction);
         telemetry.addData("Status", selected.motor == null ? "NOT FOUND" : "ready");
         telemetry.addData("Power", gamepad1.a && selected.motor != null
                 ? "enabled (max " + RobotConfig.MOTOR_TEST_MAX_POWER + ")" : "off");
@@ -94,7 +98,7 @@ public class IndividualMotorTest extends OpMode {
             DcMotorSimple.Direction direction) {
         if (hardwareName == null || hardwareName.trim().isEmpty()) return;
 
-        MotorChoice choice = new MotorChoice(physicalPosition, hardwareName);
+        MotorChoice choice = new MotorChoice(physicalPosition, hardwareName, direction);
         try {
             choice.motor = hardwareMap.get(DcMotorEx.class, hardwareName);
             choice.motor.setPower(0);
