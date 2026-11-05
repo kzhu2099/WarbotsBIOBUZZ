@@ -61,7 +61,7 @@ public class MecanumTuner extends Procedure {
                 throw new IllegalArgumentException("Every drive motor needs a HardwareMap name.");
             }
             for (int j = i + 1; j < names.length; j++) {
-                if (names[i].equals(names[j])) {
+                if (names[i].trim().equals(names[j].trim())) {
                     throw new IllegalArgumentException("Each drive wheel must use a different motor name.");
                 }
             }
@@ -76,7 +76,7 @@ public class MecanumTuner extends Procedure {
             runOpMode(new SpinMotor(displayName, hardwareName));
 
             Inputs inputs = inputs(displayName, "Determine the " + displayName.toLowerCase() + " motor direction.");
-            Inputs.Field<Boolean> correctMotorField = inputs.b("Did the " + displayName.toLowerCase() + " motor spin?").withDefault(true);
+            Inputs.Field<Boolean> correctMotorField = inputs.b("Did the " + displayName.toLowerCase() + " motor spin?").withDefault(false);
             Inputs.Field<Direction> directionField = inputs.e("Which way did the motor spin?", Direction.class);
             awaitInputs(inputs);
 

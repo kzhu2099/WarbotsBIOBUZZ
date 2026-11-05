@@ -416,9 +416,10 @@ public class PathTestAuto extends OpMode {
         requirePositive(missing, "start wall clearance", FieldConfig.START_WALL_CLEARANCE_INCHES);
         requirePositive(missing, "Hive cell X offset", FieldConfig.HIVE_CELL_X_OFFSET_INCHES);
         requirePositive(missing, "Hive approach distance", FieldConfig.HIVE_APPROACH_INCHES);
-        requirePositive(missing, "selected lane X coordinate",
-                lane == Lane.INSIDE ? FieldConfig.INSIDE_LANE_X_INCHES
-                        : FieldConfig.OUTSIDE_LANE_X_INCHES);
+        requirePositive(missing, "inside lane X coordinate",
+                FieldConfig.INSIDE_LANE_X_INCHES);
+        requirePositive(missing, "outside lane X coordinate",
+                FieldConfig.OUTSIDE_LANE_X_INCHES);
         requirePositive(missing, "Flower standoff", FieldConfig.FLOWER_STANDOFF_INCHES);
 
         if (!missing.isEmpty()) {
@@ -442,9 +443,18 @@ public class PathTestAuto extends OpMode {
                 ? hiveCellX - FieldConfig.HIVE_APPROACH_INCHES
                 : hiveCellX + FieldConfig.HIVE_APPROACH_INCHES;
 
-        if (redLaneX <= halfLength || redLaneX + halfLength
-                >= frameLeft - FieldConfig.HIVE_CLEARANCE_INCHES) {
-            return "The selected lane is not clear of the wall and Hive frame.";
+        if (FieldConfig.INSIDE_LANE_X_INCHES <= FieldConfig.OUTSIDE_LANE_X_INCHES) {
+            return "The inside lane must be closer to the Hive/frame than the outside lane.";
+        }
+
+        double laneWallClearance = FieldConfig.HIVE_CLEARANCE_INCHES;
+        double insideLaneX = FieldConfig.INSIDE_LANE_X_INCHES;
+        double outsideLaneX = FieldConfig.OUTSIDE_LANE_X_INCHES;
+        if (insideLaneX <= halfLength + laneWallClearance
+                || insideLaneX + halfLength >= frameLeft - laneWallClearance
+                || outsideLaneX <= halfLength + laneWallClearance
+                || outsideLaneX + halfLength >= frameLeft - laneWallClearance) {
+            return "Both lane centerlines must leave room for the robot between the wall and Hive frame.";
         }
         if (redHiveCellX <= frameLeft || redHiveCellX >= center) {
             return "Hive cell X offset does not place the red cell inside the red half of the frame.";

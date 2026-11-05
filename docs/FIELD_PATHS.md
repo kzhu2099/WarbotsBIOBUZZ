@@ -28,7 +28,7 @@ FIRST's field setup guide places one Flower at the midpoint of each perimeter wa
 | **Hive bypass** | Position outside the frame on the Audience or Scoring side. Only used for an opposite-wall Flower route. |
 | **Flower approach** | Robot-center position at the measured standoff from the selected Flower. |
 
-Inside and Outside are two X centerlines on the alliance half of the field. The values are measured on the Red side and reflected across the field center for Blue. These are not arbitrary target Y values: the robot follows a fixed-X lane between the entry and Hive row.
+Inside and Outside are two X centerlines on the alliance half of the field. The values are measured from the Red wall and reflected across the field center for Blue. The **inside lane is the one closer to the Hive/frame** (larger Red-side X); the **outside lane is closer to the alliance wall** (smaller Red-side X). Both lanes must fit the robot between the wall and the frame. These are not arbitrary target Y values: the robot follows a fixed-X lane between the entry and Hive row.
 
 ## Start selections
 

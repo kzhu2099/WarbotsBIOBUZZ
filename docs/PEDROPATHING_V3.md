@@ -15,13 +15,13 @@ Do not edit the copied tuning procedures just to change a motor name or offset.
 
 ## Tune in this order
 
-1. Put the robot on blocks. Open AutoTune at `http://<Robot Controller IP>:10158`. The Pinpoint HardwareMap name defaults to `odom`, which matches this project's `Constants.java`.
-2. Run **Mecanum Tuner**. Check that the wheel shown is the wheel that spins. It checks that all four HardwareMap names are present and distinct, and spins one wheel at a time at 25% power. Copy the generated motor names and directions into `Constants.java`, then set `DRIVETRAIN_CONFIG_TUNED` to `true`.
-3. Run **Pinpoint Tuner**. Follow the push and rotation instructions. Copy the full generated `PinpointConfig`, including pod type or custom scalar, both offsets, both directions, and units. Then set `LOCALIZER_CONFIG_TUNED` to `true`.
-4. Run **Foresight Tuner** after the drive and localizer are correct. Copy its complete generated `ForesightConfig` into `Constants.java`.
-5. Run **Tests** in AutoTune. Check localization, driving, and follower behavior before using either Pedro OpMode.
+Open AutoTune at `http://<Robot Controller IP>:10158`. The Pinpoint HardwareMap name defaults to `odom`, which matches this project's `Constants.java`.
+1. **Mecanum Tuner:** Raise the robot on blocks so the wheels are off the floor. The tuner checks that all four HardwareMap names are present and distinct, then spins one wheel at a time at 25% power. Check that the wheel shown is the wheel that spins. Copy the generated names and directions into `Constants.java`, then set `DRIVETRAIN_CONFIG_TUNED` to `true`.
+2. **Pinpoint Tuner:** Put the robot on a level floor with the drive motors off. Push it by hand when prompted, then rotate it in place as instructed. Leave room to move the full measured distance. The direction checks require at least one inch of reported movement; if the reading is too small, do not accept a result. Copy the complete generated `PinpointConfig`, including pod type or custom scalar, both offsets, both directions, and units. Then set `LOCALIZER_CONFIG_TUNED` to `true`.
+3. **Foresight Tuner:** This tuner drives the robot under motor power. Take it off the blocks and use a clear, level test area with enough room for the prompted movements. Keep people and objects out of the travel path and an operator ready on Stop. Run it only after the drivetrain and Pinpoint localizer are correct. Copy its complete generated `ForesightConfig` into `Constants.java`.
+4. **Tests:** Check localization, drivetrain movement, and follower behavior before using either Pedro OpMode. Run the driving test in the same clear area, not on blocks.
 
-Leave the readiness flags false until the corresponding tuner output is copied and checked. Pedro TeleOp and the path test will not start without all three configurations.
+Leave the readiness flags false until the corresponding tuner output is copied and checked. Pedro TeleOp and the path test will not start without all three configurations. Stopping a tuning OpMode now stops the active Foresight drive loop and commands the drivetrain to zero.
 
 ## How a path works
 
