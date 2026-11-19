@@ -30,7 +30,10 @@ public final class RobotConfig {
     public static final double RIGHT_OUTTAKE_POWER = 1.0;
     public static final double SHOOT_SECONDS = 1.0;
 
-    public static final double PATH_PAUSE_SECONDS = 1.0;
+    // Autonomous tuning values used by both path modes.
+    public static final double AUTO_OUTTAKE_RPM = 6000.0;
+    public static final long AUTO_SHOOT_MS = 1000;
+    public static final long AUTO_PICKUP_MS = 800;
     public static final double PATH_TIMEOUT_SECONDS = 20.0;
 
     public static boolean transferEnabled() {
