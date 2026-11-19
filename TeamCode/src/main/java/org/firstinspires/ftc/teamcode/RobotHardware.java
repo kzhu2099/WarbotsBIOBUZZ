@@ -42,9 +42,9 @@ public final class RobotHardware {
             return;
         }
 
-        double frontLeftPower = forward - strafe - turn;
+        double frontLeftPower = forward + strafe - turn;
         double frontRightPower = forward + strafe + turn;
-        double backLeftPower = forward + strafe - turn;
+        double backLeftPower = forward - strafe - turn;
         double backRightPower = forward - strafe + turn;
 
         double largestPower = Math.max(
