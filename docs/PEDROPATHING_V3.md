@@ -21,7 +21,7 @@ Open AutoTune at `http://<Robot Controller IP>:10158`. The Pinpoint HardwareMap 
 3. **Foresight Tuner:** This tuner drives the robot under motor power. Take it off the blocks and use a clear, level test area with enough room for the prompted movements. Keep people and objects out of the travel path and an operator ready on Stop. Run it only after the drivetrain and Pinpoint localizer are correct. Copy its complete generated `ForesightConfig` into `Constants.java`.
 4. **Tests:** Check localization, drivetrain movement, and follower behavior before using either Pedro OpMode. Run the driving test in the same clear area, not on blocks.
 
-Leave the readiness flags false until the corresponding tuner output is copied and checked. Pedro TeleOp and the path test will not start without all three configurations. Stopping a tuning OpMode now stops the active Foresight drive loop and commands the drivetrain to zero.
+The current master parent contains populated Mecanum, Pinpoint, and Foresight settings, and both readiness flags are true. This confirms that settings were entered; it does not prove the assembled robot passed physical tests or that current motor directions and odometry mounting match the saved values. Physically verify all three before a floor path. Stopping a tuning OpMode now stops the active Foresight drive loop and commands the drivetrain to zero.
 
 ## How a path works
 
@@ -36,7 +36,7 @@ follower.follow(path);
 
 Call `follower.update()` on every OpMode loop while a path is running. Do not put a long `sleep()` inside the path-following loop.
 
-The path test uses separate orthogonal lane and approach segments. It does not connect the Hive and Flower with one diagonal shortcut. It also prints the planned route and each waypoint coordinate during INIT.
+The drive-only path test uses explicit literal presets from FieldPoses.java: six start rows per alliance, separate OUTSIDE and INSIDE lanes, Hive row waypoints, a Hive safe stop, four Flower centers, four separate Flower robot-stop poses, and Audience/Scoring bypasses. INIT prints the complete route with exact robot-center coordinates and headings. It does not initialize or command intake, transfer, outtake, or camera hardware. The path checker validates the 18 x 18 in robot footprint against the field boundary and a conservative Hive keep-out.
 
 ## Before the first path test
 

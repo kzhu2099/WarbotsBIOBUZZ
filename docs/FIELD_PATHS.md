@@ -1,83 +1,133 @@
-# Field coordinates and path layout
+# BIOBUZZ field coordinates and drive-only path test
 
-This file explains where the test poses are and what the robot is expected to do. The path test is a drivetrain test, not a scoring autonomous.
+## Coordinate system
 
-## Field coordinates
+All coordinates are measured from the inside faces of the field perimeter.
 
-The field is 144 by 144 inches.
+- Origin (0, 0): inside corner at the Red/left wall and Audience/front wall.
+- +X points right, from Red toward Blue.
+- +Y points back, from Audience toward Scoring.
+- Heading 0°: robot front points right / Blue.
+- Heading 90°: robot front points back / Scoring.
+- Heading 180°: robot front points left / Red.
+- Heading 270°: robot front points toward Audience / front.
 
-- `X = 0`: Red wall.
-- `X = 144`: Blue wall.
-- `Y = 0`: Audience wall.
-- `Y = 144`: Scoring wall.
-- `(72, 72)`: Field center.
+Every Pose is the robot CENTER, not the bumper, wheel axle, Flower center, or Hive Cell center. Physical field objects and robot stopping positions are separate.
 
-Red is on the left side of the field. Blue is on the right. X increases from Red to Blue; Y increases from Audience to Scoring. A heading of 0 points toward +X. Headings are in radians in code and shown in degrees on the INIT screen.
+## Field source and tolerance
 
-FIRST's field setup guide places one Flower at the midpoint of each perimeter wall. The code uses the field midpoint for the Flower's coordinate along that wall. The actual robot stopping distance from the wall is a separate measured value.
+The coordinate reference is FIRST's 2026-2027 BIOBUZZ 3D field CAD, model v26-27.2. The manual's 144 in figure is nominal. A measurement of the STEP model's inside wall faces gives 141.348 in (70.674 in from its center to each inner wall). Tile seam positions are not perfectly uniform, so the six start-row centers below are explicit CAD-derived values rather than an assumed 24 in grid.
 
-## What the named poses mean
+References:
+- Official manual: https://ftc-resources.firstinspires.org/ftc/game/manual
+- Official field CAD and setup resources: https://ftc-resources.firstinspires.org/ftc/archive/2027/field
+- Independent measurement notes for the official STEP: https://github.com/FTCCompSim/FTCCompSim.github.io/blob/main/docs/biobuzz/field-cad-audit.md
+- Measured geometry constants: https://github.com/FTCCompSim/FTCCompSim.github.io/blob/main/src/games/biobuzz/fieldDims.gen.ts
 
-| Pose | Meaning |
-|---|---|
-| **Start robot center** | Center of the chassis at the selected start position. |
-| **Lane entry** | Point where the robot reaches the selected lane from the start. |
-| **Lane at Hive row** | Same lane X coordinate at the selected Hive cell's Y coordinate. |
-| **Hive cell center** | Center of the selected cell in the Red or Blue Hive. |
-| **Hive approach** | Robot-center position outside the frame, facing the selected cell. |
-| **Hive bypass** | Position outside the frame on the Audience or Scoring side. Only used for an opposite-wall Flower route. |
-| **Flower approach** | Robot-center position at the measured standoff from the selected Flower. |
+FIRST identifies the 3D CAD as the field reference and warns that event fields can vary by approximately 1 in. Treat these as reference presets, not a guarantee that every event field is identical. Check the actual perimeter and Hive before driving.
 
-Inside and Outside are two X centerlines on the alliance half of the field. The values are measured from the Red wall and reflected across the field center for Blue. The **inside lane is the one closer to the Hive/frame** (larger Red-side X); the **outside lane is closer to the alliance wall** (smaller Red-side X). Both lanes must fit the robot between the wall and the frame. These are not arbitrary target Y values: the robot follows a fixed-X lane between the entry and Hive row.
+## Robot footprint and exact start placement
 
-## Start selections
+The robot is 18 x 18 in including bumpers. Its half-width and half-length are both 9 in.
 
-The test has three start choices:
+The six row centers are:
 
-- **SIDE_WALL_CENTER** puts the robot halfway along the Red or Blue alliance wall.
-- **AUDIENCE_CORNER** puts it near the Audience-side end of that alliance wall.
-- **SCORING_CORNER** puts it near the Scoring-side end.
+| Start row | Y center | Position |
+|---|---:|---|
+| 1 | 11.677 in | nearest Audience/front |
+| 2 | 35.016 in | |
+| 3 | 58.518 in | |
+| 4 | 82.020 in | |
+| 5 | 105.522 in | |
+| 6 | 129.266 in | nearest Scoring/back |
 
-All three start poses face toward the field center. The configured wall clearance is measured from the outside of the robot, including bumpers, to the wall.
+The side bumper is placed flush against the inside face of the alliance wall:
 
-## Route shape
+| Alliance | Wall | Robot center X | Heading |
+|---|---|---:|---:|
+| Red | Left | 9.000 in | 0° (front right) |
+| Blue | Right | 132.348 in | 180° (front left) |
 
-The robot center follows axis-aligned segments. A lane run keeps X fixed and changes Y. A cross-field segment keeps Y fixed and changes X.
+For Red, put the LEFT bumper against the Red/left inside wall. For Blue, put the RIGHT bumper against the Blue/right inside wall. Align the robot center with the selected row's printed Y coordinate. The Driver Station prints the exact selected center, row, and front direction.
 
-1. Move from the selected start to the selected lane.
-2. Follow the lane to the selected Hive cell's row.
-3. Move across to the Hive approach point and pause.
-4. Back out to the lane.
-5. Follow the lane to the Flower row.
-6. Approach the Flower and pause.
-7. Return along the same route to the Hive row.
-8. Approach the Hive again and pause.
+follower.setPose() sets Pedro's starting estimate; it does not move or locate the robot. The physical robot must already be at the displayed center and heading before Play.
 
-For a Flower on the opposite wall, the route adds three points: move to the selected Audience/Scoring-side bypass, cross behind the Hive frame, then follow the far-side lane to the Flower row. It does not drive through the frame.
+## Physical Flower centers and robot stop poses
 
-The INIT screen shows every step and its target coordinate. Read the list before pressing Play. If the planned line does not match the field in front of you, do not run it.
+These are two different coordinate types. The physical Flower center is the ring-bore center measured from the CAD. The robot stop is the center of the 18 x 18 in chassis with the front facing the Flower.
 
-## Measurements required before the test will start
+| Flower | Physical center (x, y) | Robot stop (x, y, heading) |
+|---|---:|---:|
+| Red wall / left | (2.630, 47.282) | (19.000, 47.282, 180°) |
+| Scoring wall / back | (47.282, 138.718) | (47.282, 122.348, 90°) |
+| Blue wall / right | (138.718, 94.066) | (122.348, 94.066, 0°) |
+| Audience wall / front | (94.066, 2.630) | (94.066, 19.000, 270°) |
 
-Open `FieldConfig.java` and enter the following values from the assembled robot and the current field CAD:
+The Flowers are NOT centered at the middle of their walls. Do not replace these four positions with a wall-midpoint formula.
 
-| Setting | How to measure it |
-|---|---|
-| `ROBOT_WIDTH_INCHES` | Outside-to-outside width including bumpers |
-| `ROBOT_LENGTH_INCHES` | Front-to-back length including bumpers |
-| `START_WALL_CLEARANCE_INCHES` | Gap from the robot's outside edge, including bumpers, to the wall at the selected start |
-| `HIVE_CELL_X_OFFSET_INCHES` | X distance from field center to the center of a Hive cell |
-| `HIVE_APPROACH_INCHES` | X distance from the cell center to the robot center at approach |
-| `INSIDE_LANE_X_INCHES` | Red wall to robot-center X coordinate for the inside lane |
-| `OUTSIDE_LANE_X_INCHES` | Red wall to robot-center X coordinate for the outside lane |
-| `FLOWER_STANDOFF_INCHES` | Perimeter wall to robot-center distance at the Flower |
+## Hive Cell centers and keep-out
 
-All robot dimensions include bumpers. Lane, Hive, and Flower coordinates refer to the robot center. The code checks the robot outline against the field perimeter and the nominal Hive frame before allowing the path to start.
+The four CAD-derived projected Cell centers are:
 
-The code uses nominal frame dimensions and a clearance margin. The field guide notes that some field dimensions can vary between events. A passing geometry check does not guarantee a collision-free path on a particular field, especially when localization or follower error is present. Start slowly, keep an operator on the stop control, and watch the robot throughout the test.
+| Cell | Center (x, y) |
+|---|---:|
+| Red Audience | (57.924, 57.234) |
+| Red Scoring | (57.924, 84.114) |
+| Blue Audience | (83.424, 57.234) |
+| Blue Scoring | (83.424, 84.114) |
 
-## What the software does not know
+These are physical Cell centers, not robot approach poses.
 
-`follower.setPose(startPose)` tells Pedro where the robot is assumed to be. It does not measure the robot's actual position. Put the robot at the displayed center and heading before pressing Play.
+The CAD ground footprint of the Hive frame and feet is approximately:
+- X: 45.939 to 95.409 in
+- Y: 51.198 to 90.150 in
 
-The test does not operate the intake, transfer, outtakes, or camera. It does not confirm game-piece collection or scoring. Tune Mecanum, Pinpoint, and Foresight first.
+The path test moves only to a Hive SAFE STOP outside this footprint. It does not try to enter a Cell, aim, intake, or score.
+
+## Two explicitly selected lane routes
+
+Both alliances have two separate sets of literal robot-center lane presets:
+
+| Lane | Red X | Blue X | Meaning |
+|---|---:|---:|---|
+| OUTSIDE | 18.000 in | 123.348 in | closer to the alliance wall |
+| INSIDE | 30.000 in | 111.348 in | closer to the Hive frame |
+
+Each lane has six explicit start-entry poses, two Hive-row poses, four Flower-row poses, and separate Audience/Scoring bypass poses. Blue is not computed by reflecting Red at runtime. The OpMode selects one of these named presets.
+
+The route is:
+
+1. Start -> selected lane entry.
+2. Follow the lane to the selected Audience or Scoring Hive row.
+3. Move to the Hive safe stop, then back out to the lane.
+4. For a side-wall Flower on the opposite alliance half, take the selected Audience or Scoring bypass and cross behind the Hive.
+5. Follow the selected lane to the Flower row and stop at the separate Flower robot-stop pose.
+6. Return through the displayed waypoints to the selected start.
+
+The INIT screen prints the full ordered route. Every robot waypoint is formatted as (x, y) in plus heading degrees. Physical Flower centers and Hive Cell centers are displayed separately.
+
+The route checker verifies every straight segment against the CAD Hive footprint expanded by the 9 in robot half-size plus 2 in clearance. It also checks that the 18 x 18 in robot footprint stays inside the modeled field. This is a conservative software check, not a substitute for watching the real robot or checking the event field.
+
+## Driver Station controls
+
+During INIT, Gamepad 1 controls the preview:
+
+- X: switch Red / Blue.
+- D-pad left/right: select start row 1–6.
+- D-pad up/down: select one of the four Flowers.
+- A: switch OUTSIDE / INSIDE lane.
+- B: switch Audience / Scoring bypass side.
+
+INIT always displays robot placement, exact start pose, front direction, selected lane, physical Flower center, Flower robot stop, four Cell centers, and the complete ordered path. Hardware or route warnings do not hide the coordinates.
+
+## First drive-only test procedure
+
+The OpMode is TEST - Pedro Path (Drive Only). It initializes the four drive motors and Pedro follower only. It does not initialize or command the intake, transfer, outtakes, or cameras.
+
+1. Raise the robot and verify each drive motor and wheel direction with the individual-motor test. Keep the robot on blocks during this check.
+2. Verify the Pinpoint axes by moving the robot by hand in the path-test convention: X increases right toward Blue, Y increases from Audience toward Scoring, and heading increases counterclockwise. If any axis disagrees, do not run a floor path.
+3. Select the alliance and row. Place the robot exactly as INIT describes. Red: left bumper flush to Red/left inner wall, center X=9.000. Blue: right bumper flush to Blue/right inner wall, center X=132.348.
+4. Check the displayed front direction and the entire route. If the actual event Hive or perimeter differs from the CAD reference, or any route looks unsafe, do not press Play.
+5. Have an operator ready on Stop. Start with a clear field, watch the complete route, and confirm localization at every waypoint.
+
+This is a drive/localization/path test, not a scoring autonomous. A passing geometry check does not prove motor directions, Pinpoint offsets, Foresight response, or event-field measurements are correct.
