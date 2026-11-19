@@ -8,7 +8,7 @@ Use the Driver Station hardware names shown in this guide.
 | **TeleOp - Pedro + Pinpoint** | Manual drive and pose telemetry | Tuned Mecanum, Pinpoint, and Foresight |
 | **TeleOp - No Shooting** | Drive and intake without outtake power | Four drive motors and intake |
 | **Auto - Forward Test** | Short forward movement | Four drive motors |
-| **TEST - Pedro Path (No Mechanisms)** | Lane, Hive, Flower, and return route | Tuned Pedro setup and measured `FieldConfig.java` values |
+| **TEST - Pedro Path (Drive Only)** | Lane, Hive, Flower, and return route | Tuned Pedro setup and measured `FieldConfig.java` values |
 | **TEST - Individual Motor** | One motor at a time | Installed motors |
 | **Camera - AprilTag Test** | Webcam preview and tag detection | Configured webcam |
 
@@ -63,21 +63,21 @@ Raise the robot and keep everyone clear of moving parts. Confirm the selected ph
 3. Correct motor directions before putting the robot on the floor.
 4. Use Auto - Forward Test for a short movement check.
 5. Use TeleOp - Manual (No Pedro) to check normal driving.
-6. Tune Pedro before using TeleOp - Pedro + Pinpoint or TEST - Pedro Path.
+6. Verify the saved Mecanum, Pinpoint, and Foresight settings on the assembled robot before using TeleOp - Pedro + Pinpoint or TEST - Pedro Path (Drive Only).
 
 ## Path test selections
 
 In INIT:
 
-- X changes Red/Blue.
-- D-pad left/right changes start position.
-- D-pad up/down changes Flower.
-- A switches Inside/Outside lane.
-- B switches Audience-side/Field-side Hive cell.
+- X switches Red/Blue.
+- D-pad left/right selects one of six explicit start rows (row 1 is nearest Audience).
+- D-pad up/down selects Red wall, Scoring wall, Blue wall, or Audience wall Flower.
+- A switches OUTSIDE/INSIDE lane.
+- B switches Audience/Scoring Hive bypass.
 
-The INIT screen displays each waypoint and its robot-center coordinate. The coordinate convention and route are in [FIELD_PATHS.md](FIELD_PATHS.md).
+The INIT screen displays the exact robot-center start coordinate, heading, bumper-to-wall instruction, physical Flower center, separate robot stop, and the complete ordered route. See [FIELD_PATHS.md](FIELD_PATHS.md) for the six row coordinates and coordinate convention.
 
-The path test sets the follower's starting pose. That sets the localizer's estimate; it does not locate or move the robot. Put the robot's center at the displayed start pose and heading before pressing Play.
+For Red, put the LEFT bumper flush against the Red/left inside wall; the center is X=9.000 in. For Blue, put the RIGHT bumper flush against the Blue/right inside wall; the center is X=132.348 in in the CAD-derived 141.348 in inside-wall span. Align the robot center to the selected row Y. The front direction is shown on INIT. The path test sets the follower's starting estimate; it does not move or locate the robot.
 
 ## Mechanism behavior
 
